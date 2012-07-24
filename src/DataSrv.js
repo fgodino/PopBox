@@ -159,61 +159,48 @@ var popNotification = function(db, appPrefix, queue, maxElems, callback,
   //hight priority first
   var fullQueueIdH = config.db_key_queue_prefix + 'H:' + appPrefix +
     queue.id, fullQueueIdL = config.db_key_queue_prefix + 'L:' + appPrefix +
-    queue.id, restElems = 0;
+    queue.id;
 
-  db.lrange(fullQueueIdH, 0, maxElems-1, function onRangeH(errH, dataH) {
-    var dataHlength = dataH.length;
-    logger.debug('onRangeH(errH, dataH)', [ errH, dataH ]);
-    if (errH && !firstElem) {//errH
-      manageError(errH, callback);
-    } else {
-      db.ltrim(fullQueueIdH, dataH.length, -1, function onTrimH(err) {
-        if (err) {
-          logger.warning('onTrimH', err);
-        }
-        //the trim fails!! duplicates warning!!
-      });
+    var popScript="\
+local rollback = function(data, key)\n\
+  for i, elem in pairs(data) do\n\
+    redis.call('lpush',key, elem)\n\
+  end\n\
+end\n\
+\n\
+local err = nil\n\
+local idH = KEYS[1]\n\
+local idL = KEYS[2]\n\
+local max = 0+ARGV[1]\n\
+\n\
+local dataH = redis.call('lrange', idH, 0, max-1)\n\
+local dataHlength = table.getn(dataH)\n\
+redis.call('ltrim', idH, dataHlength, -1)\n\
+local dataL = {}\n\
+if max > dataHlength then\n\
+  local restElem = max-dataHlength\n\
+  dataL = redis.pcall('lrange', idL, 0, restElem-1)\n\
+  if dataL.err then\n\
+    rollback(dataH, idH)\n\
+    return {err=dataL.err} \n\
+  end\n\
+  local dataLlength = table.getn(dataL)\n\
+  local err = redis.pcall('ltrim', idL, dataLlength, -1)\n\
+  if err.err then\n\
+         rollback(dataH, idH)\n\
+         return {err=err.err} \n\
+  end\n\
+end\n\
+return {dataH, dataL}\n\
+";
 
-      if (firstElem[0] === fullQueueIdH) {  //buggy indexes beware
-        dataH = [
-          firstElem[1]
-        ].concat(dataH);
-      }
-
-
-      if (dataHlength < maxElems) {
-        restElems = maxElems - dataHlength;
-        //Extract from both queues
-        db.lrange(fullQueueIdL, 0, restElems-1, function on_rangeL(errL, dataL) {
-            if (errL && firstElem[0] !== fullQueueIdL) {
-              //fail but we may have data of previous range
-              if (dataH) {
-                //if there is dataH dismiss the low priority error
-                getPopData(dataH, callback, queue);
-              } else {
-                manageError(errL, callback);
-              }
-            } else {
-              if (firstElem[0] === fullQueueIdL) {
-                dataL = [
-                  firstElem[1]
-                ].concat(dataL);
-              }
-                db.ltrim(fullQueueIdL,dataL.length, -1, function on_trimL(err) {
-                    logger.warning('on_trimL', err);
-                  });
-                if (dataL) {
-                  dataH = dataH.concat(dataL);
-                }
-                getPopData(dataH, callback, queue);
-              }
-          });
-      } else {
-        //just one queue used
-        getPopData(dataH, callback, queue);
-      }
-    }
-  });
+    db.eval(popScript, 2, fullQueueIdH, fullQueueIdL, maxElems, function(err, data){
+        console.log("ERR");
+        console.dir(err);
+        console.log("DATA");
+        console.dir(data);
+        getPopData(data, callback, queue);
+    }); 
 };
 
 
@@ -276,7 +263,7 @@ var blockingPop = function(appPrefix, queue, maxElems, blockingTime, callback) {
           }
         }
       }
-    });
+    }); 
 };
 
 function getPopData(dataH, callback, queue) {
