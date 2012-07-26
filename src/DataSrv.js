@@ -154,7 +154,7 @@ var popNotification = function(db, appPrefix, queue, maxElems, callback,
   firstElem) {
   'use strict';
   logger.debug('popNotification(db, appPrefix, queue, maxElems, callback, firstElem)',
-    [db, appPrefix, queue, maxElems, callback, firstElem]);
+    ["db", appPrefix, queue, maxElems, callback, firstElem]);
   //pop the queu  (LRANGE)
   //hight priority first
   var fullQueueIdH = config.db_key_queue_prefix + 'H:' + appPrefix +
@@ -194,12 +194,15 @@ end\n\
 return {dataH, dataL}\n\
 ";
 
-    db.eval(popScript, 2, fullQueueIdH, fullQueueIdL, maxElems, function(err, data){
-        console.log("ERR");
-        console.dir(err);
-        console.log("DATA");
+    db.eval(popScript, 2, fullQueueIdH, fullQueueIdL, maxElems, function onEval(err, data){
+        logger.debug('onEval(err, data)', [err, data]);
         console.dir(data);
-        getPopData(data, callback, queue);
+        if (err) {
+            logger.warning('onEval', [err]);
+            callback(err);
+        } else {
+            getPopData(data[0].concat(data[1]), callback, queue);
+        }
     }); 
 };
 
