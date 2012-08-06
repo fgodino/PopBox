@@ -4,16 +4,21 @@
 //
 /**
  *
- * @type {String}
+ * @type {Array} ex. [{host:'localhost'}, {host:'localhost', port:'6789'}]
  */
 //exports.redisServers = [{host:'localhost'}, {host:'localhost', port:'6789'}];
+
 exports.redisServers = [{host:'metis.hi.inet'}];
+
 
 /**
  *
- * @type {String}
+ * @type {Object} ex. { host:'hostname', port: 'port'} 
+ * 
  */
-exports.tranRedisServer = 'metis.hi.inet';
+
+exports.tranRedisServer = {host:'metis.hi.inet'};
+
 
 /**
  *
@@ -154,3 +159,15 @@ exports.cluster.numcpus = 0;
  * @type {Number} max value for expirationDate
  */
 exports.MAX_TIMESTAMP = 2147483647; // 32-bit, 19 January 2038
+
+/**
+ *
+ * @type {boolean}
+ */
+exports.enableSecure= true;
+
+/**
+ *
+ * @type {String} absolute path for the certs and keys. Default will be chosen when empty.
+ */
+exports.agent.crt_path = "";

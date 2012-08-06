@@ -215,7 +215,9 @@ return {dataH, dataL}\n\
             logger.warning('onEval', [err]);
             callback(err);
         } else {
-            getPopData(data[0].concat(data[1]), callback, queue);
+            data[0] = data[0].concat(data[1]);
+            data[0].unshift(firstElem[1]);
+            getPopData(data[0], callback, queue);
         }
 
     }); 

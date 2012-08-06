@@ -7,18 +7,21 @@
 var config = require('./config.js');
 var cluster = require('cluster');
 var numCPUs = require('os').cpus().length;
+var jade = require('jade');
 
 var path = require('path');
 var log = require('PDITCLogger');
 var logger = log.newLogger();
-logger.prefix = path.basename(module.filename,'.js');
+logger.prefix = path.basename(module.filename, '.js');
 
-var prefixer = require('./prefixer') ;
-var sendrender = require('./sendrender') ;
+var dirModule = path.dirname(module.filename);
+
+var prefixer = require('./prefixer');
+var sendrender = require('./sendrender');
 
 if (config.cluster.numcpus >= 0 && config.cluster.numcpus < numCPUs) {
     numCPUs = config.cluster.numcpus;
-    logger.debug('numCPUs='+numCPUs);
+    logger.info('numCPUs=' + numCPUs);
 }
 
 
@@ -33,7 +36,7 @@ if (cluster.isMaster && numCPUs !== 0) {
         logger.warning('worker ' + worker.pid + ' died');
     });
 } else {
-    logger.debug('cluster worker',cluster);
+    logger.debug('cluster worker', cluster);
 
     var fs = require('fs');
     var express = require('express');
@@ -43,73 +46,90 @@ if (cluster.isMaster && numCPUs !== 0) {
     var evLsnr = require('./ev_lsnr');
     var cbLsnr = require('./ev_callback_lsnr');
 
+    var servers = [];
     var app = express.createServer();
-    app.set('views', __dirname + '/views');
-
-    var options = {
-        key: fs.readFileSync('./PopBox/utils/server.key'),
-        cert: fs.readFileSync('./PopBox/utils/server.crt')
-    };
-
-    var appSec = express.createServer(options);
-
-    var servers = [app, appSec];
     app.prefix = "UNSEC:";
     app.port = config.agent.port;
+    servers.push(app);
 
-    appSec.prefix = "SEC:";
-    appSec.port = Number(config.agent.port) + 1;
+    logger.info("config.enableSecure", config.enableSecure);
+    if (config.enableSecure === true || config.enableSecure === "true" || config.enableSecure === 1) {
+        if (!config.agent.crt_path) {
+            var options_dir = {
+                key: path.resolve(dirModule, '../utils/server.key'),
+                cert: path.resolve(dirModule, '../utils/server.crt')
+            };
+        } else {
+            var options_dir = {
+                key: path.resolve(config.agent.crt_path, 'server.key'),
+                cert: path.resolve(config.agent.crt_path, 'server.crt')
+            };
+        }
 
+        /*checks whether the cert files exist or not
+         and starts the appSec server*/
 
-    app.use(express.query());
-    app.use(express.bodyParser());
-    app.use(express.limit("1mb"));
-    app.use(prefixer.prefixer(app.prefix));
-    app.use(sendrender.sendRender());
-    app.use(express.static(__dirname )) ;
-    app.use(express.directory(__dirname)) ;
+        if (path.existsSync(options_dir.key) &&
+            path.existsSync(options_dir.cert) &&
+            fs.statSync(options_dir.key).isFile() &&
+            fs.statSync(options_dir.cert).isFile()) {
 
+            var options = {
+                key: fs.readFileSync(options_dir.key),
+                cert: fs.readFileSync(options_dir.cert)
+            };
+            logger.info("valid certificates")
+        } else {
+            logger.debug('certs not found', options_dir);
+            throw new Error("No valid certificates were found in the given path");
+        }
 
-    appSec.use(express.query());
-    appSec.use(express.bodyParser());
-    appSec.use(express.limit("1mb"));
+        var appSec = express.createServer(options);
+        appSec.prefix = "SEC:";
+        appSec.port = Number(config.agent.port) + 1;
 
-    appSec.post('/trans', logic.postTrans);
-    app.put('/trans/:id_trans', logic.putTransMeta);
-    appSec.get('/trans/:id_trans/state/:state?', logic.transState);
-    appSec.get('/queue/:id/size', logic.checkPerm);
-    appSec.post('/queue/:id/pop',logic.checkPerm);
-    appSec.post('/queue', logic.postQueue);
+        servers.push(appSec);
+    }
 
-
-    app.del('/trans/:id_trans', logic.deleteTrans);
-    //app.get('/trans/:id_trans/state/:state?', logic.transState);
-    app.get('/trans/:id_trans', logic.transMeta);
-    app.put('/trans/:id_trans', logic.putTransMeta);
-    app.post('/trans/:id_trans/payload', logic.payloadTrans);
-    app.post('/trans/:id_trans/expirationDate', logic.expirationDate);
-    app.post('/trans/:id_trans/callback', logic.callbackTrans);
-    app.post('/trans', logic.postTrans);
-    app.get('/queue/:id', logic.getQueue);
-    app.post('/queue/:id/pop', logic.popQueue);
-
+    servers.forEach(function (server) {
+        server.use(express.query());
+        server.use(express.bodyParser());
+        server.use(express.limit("1mb"));
+        server.use(prefixer.prefixer(server.prefix));
+        server.use(sendrender.sendRender());
+        server.use("/", express.static(__dirname + '/public'));
+        server.del('/trans/:id_trans', logic.deleteTrans);
+        //app.get('/trans/:id_trans/state/:state?', logic.transState);
+        server.get('/trans/:id_trans', logic.transMeta);
+        server.put('/trans/:id_trans', logic.putTransMeta);
+        server.post('/trans/:id_trans/payload', logic.payloadTrans);
+        server.post('/trans/:id_trans/expirationDate', logic.expirationDate);
+        server.post('/trans/:id_trans/callback', logic.callbackTrans);
+        server.post('/trans', logic.postTrans);
+        server.get('/queue/:id', logic.getQueue);
+        server.post('/queue/:id/pop', logic.popQueue);
+    });
 
 
 //Add subscribers
     async.parallel([evLsnr.init(emitter), cbLsnr.init(emitter)],
         function onSubscribed() {
             'use strict';
-           // logger.debug('onSubscribed()', []);
-            servers.forEach(function(server){server.listen(server.port);});
+            // logger.debug('onSubscribed()', []);
+            servers.forEach(function (server) {
+                server.listen(server.port);
+            });
         });
-    servers.forEach(function(server){server.listen(server.port);});
+    /* servers.forEach(function (server) {
+     server.listen(server.port);
+     });*/
 }
 
 /*
-process.on('uncaughtException', function onUncaughtException (err) {
-    'use strict';
-    logger.warning('onUncaughtException', err);
-});
+ process.on('uncaughtException', function onUncaughtException (err) {
+ 'use strict';
+ logger.warning('onUncaughtException', err);
+ });
  */
 
 
