@@ -48,9 +48,9 @@ describe('Provision', function() {
     });
     afterEach(function(done) {
         var urlQ1 = 'http://' + host + ':' + agt_config.port +
-            '/queue/q1/Pop';
+            '/queue/q1/pop';
         var urlQ2 = 'http://' + host + ':' + agt_config.port +
-            '/queue/q2/Pop';
+            '/queue/q2/pop';
         var completed = 0;
 
         rest.post(urlQ1).on('complete', function() {
@@ -68,7 +68,7 @@ describe('Provision', function() {
         it('Should return an empty responses ' +
             'for expired transactions', function(done) {
             trans.value.expirationDate =
-                Math.round(new Date().getTime() / 1000 + 2);
+                Math.round(new Date().getTime() / 1000 + 1);
             rest.postJson('http://localhost:3001/trans',
                 trans.value).on('complete', function(data, response) {
                     if (response.statusCode === 200) {
@@ -78,7 +78,7 @@ describe('Provision', function() {
                 });
 
             var getCallback = function() {
-                sleep(5000);
+                sleep(1500);
 
                 rest.get('http://localhost:3001/trans/' + trans.id,
                     {headers: {'Accept': 'application/json'}}).on('complete',
