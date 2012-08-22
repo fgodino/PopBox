@@ -8,7 +8,7 @@
  */
 //exports.redisServers = [{host:'localhost'}, {host:'localhost', port:'6789'}];
 
-exports.redisServers = [{host:'metis.hi.inet'}];
+exports.redisServers = [{host:'localhost'}];
 
 
 /**
@@ -17,7 +17,7 @@ exports.redisServers = [{host:'metis.hi.inet'}];
  * 
  */
 
-exports.tranRedisServer = {host:'metis.hi.inet'};
+exports.tranRedisServer = {host:'localhost'};
 
 
 /**
