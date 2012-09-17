@@ -2,6 +2,18 @@
 // Copyright (c) Telefonica I+D. All rights reserved.
 //
 //
+
+
+/**
+ *  Level for logger
+ *      debug
+ *      warning
+ *      error
+ *      
+ * @type {String}
+ */
+exports.logLevel = 'warning';
+
 /**
  *
  * @type {Array} ex. [{host:'localhost'}, {host:'localhost', port:'6789'}]
