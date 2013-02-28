@@ -128,7 +128,6 @@ var migrateKeys = function(from, to, keys) {
   var clientFrom = config.redisServers[from].client;
   var clientTo = config.redisServers[to].client;
 
-
 }
 
 var calculateDistribution = function(cb){
