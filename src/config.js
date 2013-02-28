@@ -62,9 +62,14 @@ exports.showDeployInformation = true;
  * @type {Array} ex. [{host:'localhost'}, {host:'localhost', port:'6789'}]
  */
 //exports.redisServers = [{host:'localhost'}, {host:'localhost', port:'6789'}];
-exports.redisServers = [
-  {host: 'localhost', port: 6379}
-];
+exports.redisServers = {
+  redis1 : {host: 'localhost', port: 6379},
+  redis2 : {host: 'localhost', port: 8888}
+};
+
+exports.hashing = {};
+exports.hashing.replicas = 10;
+exports.hashing.algorithm = 'md5';
 
 /**
  * One to One relationship with redisServers

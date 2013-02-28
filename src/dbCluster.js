@@ -24,6 +24,8 @@
 var redisModule = require('redis');
 var config = require('./config.js');
 var poolMod = require('./pool.js');
+var hashing = require('./consistent_hashing');
+var async = require('async');
 
 var path = require('path');
 var log = require('PDITCLogger');
@@ -62,11 +64,14 @@ if (config.slave) {
 }
 
 transactionDbClient.select(config.selectedDB); //false pool for pushing
-var queuesDbArray = [];
-for (var i = 0; i < config.redisServers.length; i++) {
-  var port = config.redisServers[i].port || redisModule.DEFAULT_PORT;
-  var host = config.redisServers[i].host;
+
+for (var node in config.redisServers) {
+  var port = config.redisServers[node].port || redisModule.DEFAULT_PORT;
+  var host = config.redisServers[node].host;
   var cli = redisModule.createClient(port, host);
+
+  config.redisServers[node].client = cli;
+
   require('./hookLogger.js').initRedisHook(cli, logger);
 
   if (config.slave) {
@@ -77,7 +82,8 @@ for (var i = 0; i < config.redisServers.length; i++) {
   logger.info('Connected to REDIS ', host + ':' + port);
   cli.select(config.selectedDB);
   cli.isOwn = false;
-  queuesDbArray.push(cli);
+
+  hashing.addNode(node);
 }
 
 //Create the pool array - One pool for each server
@@ -89,8 +95,8 @@ for (var i = 0; i < config.redisServers.length; i++) {
 
 var getDb = function(queueId) {
   'use strict';
-  var hash = hashMe(queueId, config.redisServers.length);
-  return queuesDbArray[hash];
+  var node = hashing.getNode(queueId);
+  return config.redisServers[node].client;
 };
 
 var getOwnDb = function(queueId, callback) {
@@ -101,28 +107,69 @@ var getOwnDb = function(queueId, callback) {
   pool.get(queueId, callback);
 };
 
+var redistributeAdd = function(newNode){
+  var newNodeCli = redisModule.createClient(newNode.port, newNode.host);
+
+  calculateDistribution(function distribution(err, items){
+    for (var node in items){
+      for(var i = 0; i < items[node].length; i++){
+        var key = items[node][i];
+        if(hashing.getNode(key) != newNode.name){
+          items[node].splice(i, 1);
+        }
+      }
+    }
+    migrateKeys()
+  });
+};
+
+
+var migrateKeys = function(from, to, keys) {
+  var clientFrom = config.redisServers[from].client;
+  var clientTo = config.redisServers[to].client;
+
+
+}
+
+var calculateDistribution = function(cb){
+  var nodeFunctions = {}; //Parallel functions as an object to receive results in an object.
+  for(var node in config.redisServers){
+    nodeFunctions[node] = _getAllKeysParrallel(config.redisServers[node]);
+  }
+
+  async.parallel(nodeFunctions, cb);
+
+  function _getAllKeysParrallel (item){
+    return function _getAllKeys (callback){
+      getAllKeys(item, callback);
+    }
+  }
+};
+
+var getAllKeys = function(node, cb){
+
+  var pattern=/\w+$/;
+
+  node.client.keys("PB:Q|*", function onGet(err, res){
+    if (err){
+      cb(err);
+    }
+    else {
+    async.map(res, function transform(item, cb){
+      cb(null, pattern.exec(item)[0]);
+    }, cb);
+  }
+  });
+};
+
+hashing.addNode('redis3');
+redistributeAdd({name : 'redis3', host : 'localhost', port : 7777});
 
 var getTransactionDb = function(transactionId) {
   'use strict';
   //return a client for transactions
   return transactionDbClient;
 
-};
-
-var hashMe = function(id, mod) {
-  'use strict';
-  var i,
-      len,
-      sum = 0;
-
-  if (typeof id !== 'string') {
-    throw new TypeError('id must be a string');
-  }
-  len = id.length;
-  for (i = 0; i < len; i++) {
-    sum += id.charCodeAt(i);
-  }
-  return sum % mod;
 };
 
 var free = function (db) {

@@ -2,26 +2,21 @@ var crypto = require('crypto'),
 config = require('./config.js');
 
 
-var replicas = config.hashing.replicas || 200,
-algorithm = config.hashing.algorithm || 'md5';
+var replicas = config.hashing.replicas;
+algorithm = config.hashing.algorithm;
 
 var continuum  = {}, keys = [], nodes = [];
-
-
-for (var i = 0; i < nodes.length; i++) {
-  addNode(nodes[i]);
-}
-
 
 var addNode = function(node) {
   nodes.push(node);
 
-  for (var i = 0; i < this.replicas; i++) {
+  for (var i = 0; i < replicas; i++) {
     var key = createHash(node + ':' + i);
 
     keys.push(key);
     continuum[key] = node;
   }
+
 
   keys.sort();
 };
@@ -30,7 +25,7 @@ var addNode = function(node) {
 var removeNode = function(node) {
   var nodeIndex =nodes.indexOf(node);
 
-  for (var i = 0; i < this.replicas; i++) {
+  for (var i = 0; i < replicas; i++) {
     var key = createHash(node + ':' + i);
     delete continuum[key];
 
@@ -55,7 +50,7 @@ var getNode = function(key) {
 var getNodePosition = function(hash) {
   var down = 0, up = keys.length - 1;
   while(down <= up){
-    var center = Math.down((up - down) / 2);
+    var center = Math.floor((up + down) / 2);
     var centerValue = keys[center];
     if (centerValue === hash) { return center; }
     else if (hash < centerValue){
@@ -72,14 +67,14 @@ var getNodePosition = function(hash) {
 };
 
 var createHash = function(str) {
-  return crypto.createHash(this.algorithm).update(str).digest('hex');
+  return crypto.createHash(algorithm).update(str).digest('hex');
 };
 
 var getVNodePosition = function(vNode){
   return keys.indexOf(createHash(vNode));
 }
 
-var getKeySpace = function(vNode){
+var getKeySpace = function(vNode){;
   var posNode = getVNodePosition(vNode);
   var init, end;
   if(posNode === 0){
@@ -106,7 +101,13 @@ var getNextRealNode = function(vNode){
   return continuum[getNextVNode(vNode)];
 };
 
+var inRange = function(key, range){
+  return (key >= range[0] && key < range[1]);
+}
+
 
 exports.getNode = getNode;
 exports.addNode = addNode;
 exports.removeNode = removeNode;
+exports.getKeySpace = getKeySpace;
+exports.getNextRealNode = getNextRealNode;
