@@ -36,7 +36,7 @@ var removeNode = function(node) {
 
 
 var getNode = function(key) {
-  if (keys.length == 0) return 0;
+  if (keys.length === 0) return 0;
 
   var hash = createHash(key);
   var pos  = getNodePosition(hash);

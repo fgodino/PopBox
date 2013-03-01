@@ -8,34 +8,10 @@
 
 var redisModule = require('redis');
 var rc = redisModule.createClient(6379, 'localhost');
-var keys = ['PB:Q|H:UNSEC:Bx', 'dos', 'tres'];
 
 var deleteScript = "\
-local rollback = function(data, key)\n\
-  for i, elem in pairs(data) do\n\
-    redis.call('lpush',key, elem)\n\
-  end\n\
-end\n\
-local rollbackAll = function(rollbackData)\n\
-  for k,d in pairs(rollbackData) do\n\
-    rollback(d, k)\n\
-  end\n\
-end\n\
-local err = nil\n\
-local result={}\n\
-local rollbackData = {}\n\
 for j, k in pairs(KEYS) do\n\
-    local data = redis.pcall('lrange', k, 0, -1)\n\
-    if (data.err) then\n\
-      rollbackAll(rollbackData);\n\
-      return err = data.err;\n\
-    end\n\
-    rollbackData[k] = data\n\
-    local del = redis.pcall('del', k)\n\
-    if (trimerr.err) then\n\
-      rollbackAll(rollbackData)\n\
-      return {err = trimerr.err}\n\
-    end\n\
+    redis.call('del', k)\n\
 end\n\
 return 1\n\
 ";
@@ -44,44 +20,51 @@ var peekScript = "\
 local err = nil\n\
 local result={}\n\
 for j, k in ipairs(KEYS) do\n\
-    local data = redis.pcall('lrange', k, 0, 1)\n\
-    if data.err then return {err = data.err} end\n\
+    local data = redis.pcall('lrange', k, 0, -1)\n\
+    if (data.err) then return {err = data.err} end\n\
     table.insert(result, k)\n\
     table.insert(result, data)\n\
 end\n\
 return result\n\
 ";
 
-var insertTrans = "\
+var insertList = "\
 local rollback = function(rollbackData)\n\
   redis.call('del', rollbackData)\n\
 end\n\
-for j, k in ipairs(KEYS) do\n\
-  redis.call('lpush', ARGV[1], k)\n\
+local lpush = redis.pcall('lpush', ARGV[1], unpack(KEYS))\n\
+if (type(lpush) == 'table') then\n\
+  rollback(ARGV[1]);\n\
+  return {err = lpush.err}\n\
 end\n\
+return lpush\n\
 "
 
-var copyTrans = function (transaction, redis){
+
+//TODO: Without multi, array aproach.
+var copyQueues = function (transaction, redis, cb){
+  var content = 0;
+  var multi = redis.multi();
   for (var i = 0; i < transaction.length; i +=2){
     redis.watch(transaction[i]);
-  };
-  for (var i = 0; i < transaction.length; i +=2){
     var keys = transaction[i+1];
-    var join = keys.concat(transaction[i]);
-    console.log(join)
-    redis.multi().eval(insertTrans, keys.length, join);
+    if (keys.length > 0){
+      content++;
+      var join = keys.concat(transaction[i]);
+      multi.eval(insertList, keys.length, join);
+    }
   };
-  redis.multi().exec(function(err, res){
-    console.log(res);
-  });
+  multi.exec(cb);
+};
+
+var getQueues = function(queuesIds, redis, cb){
+  redis.eval(peekScript, queuesIds.length, queuesIds, cb);
 }
 
-var keys = ['key1', ['value1', 'value2'], 'key2', ['value1', 'value2', 'value3']];
-copyTrans(keys, rc);
-/*rc.eval(peekScript, keys.length, keys, function(err, data) {
-  'use strict';
-  console.dir(err);
-  console.dir(data);
-});*/
+var deleteQueues = function(queuesIds, redis){
+  redis.eval(deleteScript, queuesIds.length, queuesIds);
+}
 
-exports.peekScript = peekScript;
+exports.copyQueues = copyQueues;
+exports.getQueues = getQueues;
+exports.deleteQueues = deleteQueues;

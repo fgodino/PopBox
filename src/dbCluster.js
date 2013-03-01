@@ -26,6 +26,7 @@ var config = require('./config.js');
 var poolMod = require('./pool.js');
 var hashing = require('./consistent_hashing');
 var async = require('async');
+var lua = require('./lua.js');
 
 var path = require('path');
 var log = require('PDITCLogger');
@@ -108,9 +109,7 @@ var getOwnDb = function(queueId, callback) {
 };
 
 var redistributeAdd = function(newNode){
-  var newNodeCli = redisModule.createClient(newNode.port, newNode.host);
-
-  calculateDistribution(function distribution(err, items){
+  getNodeDistribution(function distribution(err, items){
     for (var node in items){
       for(var i = 0; i < items[node].length; i++){
         var key = items[node][i];
@@ -119,18 +118,33 @@ var redistributeAdd = function(newNode){
         }
       }
     }
-    migrateKeys()
   });
 };
 
-
-var migrateKeys = function(from, to, keys) {
+//TODO Refactor with async
+var migrateKeys = function(from, to, keys, cb) {
   var clientFrom = config.redisServers[from].client;
   var clientTo = config.redisServers[to].client;
+  lua.getQueues(keys, clientFrom, function(err, res) {
+    if(err){
+      console.log('get', err);
+      cb(err);
+    }
+    else {
+      lua.copyQueues(res, clientTo, function(err, copied){
+        if(err){
+          cb(err);
+        }
+        else {
+          lua.deleteQueues(keys, clientFrom);
+          cb(null);
+        }
+      });
+    }
+  });
+};
 
-}
-
-var calculateDistribution = function(cb){
+var getNodeDistribution = function(cb){
   var nodeFunctions = {}; //Parallel functions as an object to receive results in an object.
   for(var node in config.redisServers){
     nodeFunctions[node] = _getAllKeysParrallel(config.redisServers[node]);
@@ -161,8 +175,8 @@ var getAllKeys = function(node, cb){
   });
 };
 
-hashing.addNode('redis3');
-redistributeAdd({name : 'redis3', host : 'localhost', port : 7777});
+/*hashing.addNode('redis3');
+redistributeAdd({name : 'redis3', host : 'localhost', port : 7777});*/
 
 var getTransactionDb = function(transactionId) {
   'use strict';
