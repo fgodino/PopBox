@@ -23,7 +23,8 @@ var addNode = function(node) {
 
 
 var removeNode = function(node) {
-  var nodeIndex =nodes.indexOf(node);
+  var nodeIndex = nodes.indexOf(node);
+  nodes = nodes.splice(nodeIndex, 1);
 
   for (var i = 0; i < replicas; i++) {
     var key = createHash(node + ':' + i);
@@ -61,7 +62,7 @@ var getNodePosition = function(hash) {
     }
   }
   if (up < 0) {
-    upper = keys.length - 1;
+    up = keys.length - 1;
   }
   return up;
 };

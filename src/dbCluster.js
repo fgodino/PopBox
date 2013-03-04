@@ -32,6 +32,8 @@ var path = require('path');
 var log = require('PDITCLogger');
 var logger = log.newLogger();
 
+
+var redisNodes = config.redisServers;
 /**
  *
  * @param rc
@@ -56,7 +58,7 @@ var slaveOf = function(rc, masterHost, masterPort) {
 
 logger.prefix = path.basename(module.filename, '.js');
 
-var transactionDbClient = redisModule.createClient(config.tranRedisServer.port ||
+var transactionDbClient = createClient(config.tranRedisServer.port ||
     redisModule.DEFAULT_PORT, config.tranRedisServer.host);
 require('./hookLogger.js').initRedisHook(transactionDbClient, logger);
 if (config.slave) {
@@ -66,73 +68,73 @@ if (config.slave) {
 
 transactionDbClient.select(config.selectedDB); //false pool for pushing
 
-for (var node in config.redisServers) {
-  var port = config.redisServers[node].port || redisModule.DEFAULT_PORT;
-  var host = config.redisServers[node].host;
-  var cli = redisModule.createClient(port, host);
-
-  config.redisServers[node].client = cli;
-
-  require('./hookLogger.js').initRedisHook(cli, logger);
-
-  if (config.slave) {
-    slaveOf(cli, config.masterRedisServers[i].host,
-        config.masterRedisServers[i].port);
-  }
-
-  logger.info('Connected to REDIS ', host + ':' + port);
-  cli.select(config.selectedDB);
-  cli.isOwn = false;
-
-  hashing.addNode(node);
-}
-
 //Create the pool array - One pool for each server
-var poolArray = [];
-for (var i = 0; i < config.redisServers.length; i++) {
+/*var poolArray = [];
+for (var i = 0; i < redisNodes.length; i++) {
   var pool = poolMod.Pool(i);
   poolArray.push(pool);
-}
+}*/
+
+var addNode = function(name, host, port){
+  logger.info('Adding new node ', name + ' - ' + host + ':' + port);
+  hashing.addNode(name);
+  var client = createClient(port, host);
+  redisNodes[name] = {host: host, port: port, client : client};
+  redistributeAdd(name);
+};
 
 var getDb = function(queueId) {
   'use strict';
+  console.log(queueId);
   var node = hashing.getNode(queueId);
-  return config.redisServers[node].client;
+  console.log(node);
+  return redisNodes[node].client;
 };
 
 var getOwnDb = function(queueId, callback) {
   'use strict';
-  var hash = hashMe(queueId, config.redisServers.length);
+  var hash = hashMe(queueId, redisNodes.length);
   //get the pool
   var pool = poolArray[hash];
   pool.get(queueId, callback);
 };
 
 var redistributeAdd = function(newNode){
-  getNodeDistribution(function distribution(err, items){
-    for (var node in items){
-      for(var i = 0; i < items[node].length; i++){
-        var key = items[node][i];
-        if(hashing.getNode(key) != newNode.name){
-          items[node].splice(i, 1);
+  calculateDistribution(function distribution(err, items){
+    if (!err) {
+      for (var node in items){
+        if (node != newNode){
+          var keys = items[node];
+          for(var i = 0; i < keys.length; i++){
+            var key = keys[i];
+            if (hashing.getNode(key) != newNode){
+              keys.splice(i, 1);
+              i--;
+            }
+          }
+          console.log('deberia ser vacio', keys);
+          if(keys.length > 0){
+            migrateKeys(node, newNode, keys, function(err){console.log(err);});;
+          }
         }
       }
     }
   });
 };
 
-//TODO Refactor with async
+
 var migrateKeys = function(from, to, keys, cb) {
-  var clientFrom = config.redisServers[from].client;
-  var clientTo = config.redisServers[to].client;
-  lua.getQueues(keys, clientFrom, function(err, res) {
-    if(err){
-      console.log('get', err);
+  var clientFrom = redisNodes[from].client;
+  var clientTo = redisNodes[to].client;
+  lua.getQueues(keys, clientFrom, function gotQueues (err, resGet){
+    if (err){
+      logger.error('getQueues()', 'Failed to get redis Queues : ' + err);
       cb(err);
     }
     else {
-      lua.copyQueues(res, clientTo, function(err, copied){
-        if(err){
+      lua.copyQueues(resGet, clientTo, function copied(err, resCopy){
+        if (err){
+          logger.error('copyQueues()', 'Failed to copy redis queues : + ' + err);
           cb(err);
         }
         else {
@@ -142,15 +144,20 @@ var migrateKeys = function(from, to, keys, cb) {
       });
     }
   });
-};
+}
 
-var getNodeDistribution = function(cb){
+var calculateDistribution = function(cb){
   var nodeFunctions = {}; //Parallel functions as an object to receive results in an object.
-  for(var node in config.redisServers){
-    nodeFunctions[node] = _getAllKeysParrallel(config.redisServers[node]);
+  for(var node in redisNodes){
+    nodeFunctions[node] = _getAllKeysParrallel(redisNodes[node]);
   }
 
-  async.parallel(nodeFunctions, cb);
+  async.parallel(nodeFunctions, function(err, res){
+    if (err){
+      logger.error('getAllKeys()', err);
+    }
+    cb(err, res);
+  });
 
   function _getAllKeysParrallel (item){
     return function _getAllKeys (callback){
@@ -162,21 +169,18 @@ var getNodeDistribution = function(cb){
 var getAllKeys = function(node, cb){
 
   var pattern=/\w+$/;
-
   node.client.keys("PB:Q|*", function onGet(err, res){
     if (err){
+      logger.error('getKeys()', err);
       cb(err);
     }
     else {
-    async.map(res, function transform(item, cb){
-      cb(null, pattern.exec(item)[0]);
-    }, cb);
-  }
+      async.map(res, function transform(item, cb){
+        cb(null, pattern.exec(item)[0]);
+      }, cb);
+    }
   });
 };
-
-/*hashing.addNode('redis3');
-redistributeAdd({name : 'redis3', host : 'localhost', port : 7777});*/
 
 var getTransactionDb = function(transactionId) {
   'use strict';
@@ -200,6 +204,43 @@ var promoteMaster = function() {
     db.slaveof('NO', 'ONE');
   });
 };
+
+function createClient(port, host){
+  var cli = redisModule.createClient(port, host);
+
+  cli.on('error', function(err){
+    logger.warning('createClient()', err);
+  });
+
+  return cli;
+}
+
+
+// Init Nodes and functions
+for (var node in redisNodes) {
+  var port = redisNodes[node].port || redisModule.DEFAULT_PORT;
+  var host = redisNodes[node].host;
+  var cli = createClient(port, host);
+
+  redisNodes[node].client = cli;
+
+  require('./hookLogger.js').initRedisHook(cli, logger);
+
+  if (config.slave) {
+    slaveOf(cli, config.masterRedisServers[i].host,
+        config.masterRedisServers[i].port);
+  }
+
+  logger.info('Connected to REDIS ', host + ':' + port);
+  cli.select(config.selectedDB);
+  cli.isOwn = false;
+
+  hashing.addNode(node);
+}
+
+for (var node in redisNodes) {
+  redistributeAdd(node);
+}
 
 /**
  *
