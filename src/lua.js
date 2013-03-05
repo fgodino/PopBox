@@ -58,16 +58,7 @@ var copyQueues = function (transaction, redis, cb){
 };
 
 var getQueues = function(queuesIds, redis, cb){
-  var keys = [];
-  for (var i = 0; i < queuesIds.length; i++){
-    var queueId = queuesIds[i];
-    var fullQueueIdHSec = config.dbKeyQueuePrefix + 'H:SEC:' + queueId;
-    var fullQueueIdLSec = config.dbKeyQueuePrefix + 'L:SEC:' + queueId;
-    var fullQueueIdHUnsec = config.dbKeyQueuePrefix + 'H:UNSEC:' + queueId;
-    var fullQueueIdLUnsec = config.dbKeyQueuePrefix + 'L:UNSEC:' + queueId;
-    keys.push(fullQueueIdLUnsec,fullQueueIdHUnsec, fullQueueIdLSec, fullQueueIdHSec);
-  }
-  redis.eval(peekScript, keys.length, keys, cb);
+  redis.eval(peekScript, queuesIds.length, queuesIds, cb);
 }
 
 var deleteQueues = function(queuesIds, redis){

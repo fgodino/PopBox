@@ -24,7 +24,7 @@
 var redisModule = require('redis');
 var config = require('./config.js');
 var poolMod = require('./pool.js');
-var hashing = require('./consistent_hashing');
+var hashing = require('./consistent_hashing.js');
 var async = require('async');
 var lua = require('./lua.js');
 
@@ -85,9 +85,7 @@ var addNode = function(name, host, port){
 
 var getDb = function(queueId) {
   'use strict';
-  console.log(queueId);
   var node = hashing.getNode(queueId);
-  console.log(node);
   return redisNodes[node].client;
 };
 
@@ -112,9 +110,12 @@ var redistributeAdd = function(newNode){
               i--;
             }
           }
-          console.log('deberia ser vacio', keys);
           if(keys.length > 0){
-            migrateKeys(node, newNode, keys, function(err){console.log(err);});;
+            migrateKeys(node, newNode, keys, function(err){
+              if (err){
+                logger.error('migrateKeys()', err);
+              }
+            });
           }
         }
       }
@@ -122,11 +123,44 @@ var redistributeAdd = function(newNode){
   });
 };
 
+/* Cambiar todo esto, chapuza
+var redistributeRemove = function (nodeName) {
+  getAllKeys(redisNodes[nodeName], function(err, keys){
+    if (err){
+      logger.error('getAllKeys', err);
+    }
+    else {
+      for (var i = 0; i < keys.length; i++){
+        var nextRealNode, vNode = hashing.getVNode(keys[i]);
+        console.log(vNode);
+        while ((nextRealNode = hashing.getNextRealNode(vNode)) === nodeName){
+          //console.log(vNode);
+          vNode = hashing.getNextVNode(vNode);
+        }
+        console.log(nextRealNode);
+      }
+    }
+  })
+};
+*/
+
+
 
 var migrateKeys = function(from, to, keys, cb) {
   var clientFrom = redisNodes[from].client;
   var clientTo = redisNodes[to].client;
-  lua.getQueues(keys, clientFrom, function gotQueues (err, resGet){
+  var keysPrefix = [];
+
+  for (var i = 0; i < keys.length; i++){
+    var queueId = keys[i];
+    var fullQueueIdHSec = config.dbKeyQueuePrefix + 'H:SEC:' + queueId;
+    var fullQueueIdLSec = config.dbKeyQueuePrefix + 'L:SEC:' + queueId;
+    var fullQueueIdHUnsec = config.dbKeyQueuePrefix + 'H:UNSEC:' + queueId;
+    var fullQueueIdLUnsec = config.dbKeyQueuePrefix + 'L:UNSEC:' + queueId;
+    keysPrefix.push(fullQueueIdLUnsec,fullQueueIdHUnsec, fullQueueIdLSec, fullQueueIdHSec);
+  }
+
+  lua.getQueues(keysPrefix, clientFrom, function gotQueues (err, resGet){
     if (err){
       logger.error('getQueues()', 'Failed to get redis Queues : ' + err);
       cb(err);
@@ -138,13 +172,13 @@ var migrateKeys = function(from, to, keys, cb) {
           cb(err);
         }
         else {
-          lua.deleteQueues(keys, clientFrom);
+          lua.deleteQueues(keysPrefix, clientFrom);
           cb(null);
         }
       });
     }
   });
-}
+};
 
 var calculateDistribution = function(cb){
   var nodeFunctions = {}; //Parallel functions as an object to receive results in an object.
@@ -175,8 +209,8 @@ var getAllKeys = function(node, cb){
       cb(err);
     }
     else {
-      async.map(res, function transform(item, cb){
-        cb(null, pattern.exec(item)[0]);
+      async.map(res, function transform(item, callback){
+        callback(null, pattern.exec(item)[0]);
       }, cb);
     }
   });
@@ -238,9 +272,33 @@ for (var node in redisNodes) {
   hashing.addNode(node);
 }
 
-for (var node in redisNodes) {
-  redistributeAdd(node);
-}
+//Bootstrapping clients and redistributing
+
+calculateDistribution(function(err, items){
+  for (nodeFrom in items){
+    var redistribution = {};
+    var keys = items[nodeFrom];
+    for(var i = 0; i < keys.length; i++){
+      var key = keys[i];
+      var redNode = hashing.getNode(key);
+      if (redNode != nodeFrom){
+        if (!redistribution.hasOwnProperty(redNode)) {
+          redistribution[redNode] = [];
+        }
+        redistribution[redNode].push(key);
+      }
+    }
+    for(nodeDest in redistribution){
+      migrateKeys(nodeFrom, nodeDest, redistribution[nodeDest], function(err){
+        if (err){
+          logger.error('migrateKeys()', err);
+        }
+      });
+    }
+  }
+});
+
+  redistributeRemove('redis1');
 
 /**
  *

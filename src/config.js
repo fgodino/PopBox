@@ -64,8 +64,7 @@ exports.showDeployInformation = true;
 //exports.redisServers = [{host:'localhost'}, {host:'localhost', port:'6789'}];
 exports.redisServers = {
   redis1 : {host: 'localhost', port: 6379},
-  redis2 : {host: 'localhost', port: 8888},
-  redis3 : {host: 'localhost', port: 7777}
+  redis2 : {host: 'localhost', port: 8888}
 };
 
 exports.hashing = {};

@@ -23,8 +23,7 @@ var addNode = function(node) {
 
 
 var removeNode = function(node) {
-  var nodeIndex = nodes.indexOf(node);
-  nodes = nodes.splice(nodeIndex, 1);
+  var nodeIndex =nodes.indexOf(node);
 
   for (var i = 0; i < replicas; i++) {
     var key = createHash(node + ':' + i);
@@ -45,7 +44,6 @@ var getNode = function(key) {
   return continuum[keys[pos]];
 };
 
-
 //binary search
 
 var getNodePosition = function(hash) {
@@ -62,7 +60,7 @@ var getNodePosition = function(hash) {
     }
   }
   if (up < 0) {
-    up = keys.length - 1;
+    upper = keys.length - 1;
   }
   return up;
 };
@@ -71,44 +69,8 @@ var createHash = function(str) {
   return crypto.createHash(algorithm).update(str).digest('hex');
 };
 
-var getVNodePosition = function(vNode){
-  return keys.indexOf(createHash(vNode));
-}
-
-var getKeySpace = function(vNode){;
-  var posNode = getVNodePosition(vNode);
-  var init, end;
-  if(posNode === 0){
-    init = keys[keys.length - 1];
-  }
-  else {
-    init = keys[posNode - 1];
-  }
-  end = keys[posNode];
-  return [init, end];
-};
-
-var getNextVNode = function (vNode){
-  var posNode = getVNodePosition(vNode);
-  if (posNode === keys.length - 1){
-    return keys[0]; //Next would be the first (ring structure)
-  }
-  else {
-    return keys[posNode + 1];
-  }
-};
-
-var getNextRealNode = function(vNode){
-  return continuum[getNextVNode(vNode)];
-};
-
-var inRange = function(key, range){
-  return (key >= range[0] && key < range[1]);
-}
 
 
 exports.getNode = getNode;
 exports.addNode = addNode;
 exports.removeNode = removeNode;
-exports.getKeySpace = getKeySpace;
-exports.getNextRealNode = getNextRealNode;
