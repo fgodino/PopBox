@@ -16,8 +16,6 @@ var addNode = function(node) {
     keys.push(key);
     continuum[key] = node;
   }
-
-
   keys.sort();
 };
 

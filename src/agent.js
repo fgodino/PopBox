@@ -22,6 +22,8 @@
 
 var config = require('./config.js');
 
+require('./clientInterface.js')
+
 var path = require('path');
 var log = require('PDITCLogger');
 var deployInfo = require('./deployInfo.js');

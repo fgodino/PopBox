@@ -85,7 +85,6 @@ var addNode = function(name, host, port){
       logger.info('New node added', name + ' - ' + host + ':' + port);
     });
   });
-
 };
 
 var getDb = function(queueId) {
@@ -127,7 +126,7 @@ var redistributeAdd = function(newNode, cb){
           }
           else {
             if (cb && typeof(cb) === 'function') {
-                  cb(err);
+              cb(err);
             }
           }
         }
@@ -156,15 +155,19 @@ var redistributeRemove = function (nodeName, cb) {
         migrateKeys(nodeName, nodeTo, keysToMigrate, function (err){
           if (err){
             logger.error('migrateKeys()', err);
-            cb(err);
+            if (cb && typeof(cb) === 'function') {
+              cb(err);
+            }
           }
           else {
-            cb(null);
+            if (cb && typeof(cb) === 'function') {
+              cb(null);
+            }
           }
         });
       }
     }
-  })
+  });
 };
 
 
@@ -192,11 +195,15 @@ var migrateKeys = function(from, to, keys, cb) {
       lua.copyQueues(resGet, clientTo, function copied(err, resCopy){
         if (err){
           logger.error('copyQueues()', 'Failed to copy redis queues : + ' + err);
-          cb(err);
+          if (cb && typeof(cb) === 'function') {
+            cb(err);
+          }
         }
         else {
           lua.deleteQueues(keysPrefix, clientFrom);
-          cb(null);
+          if (cb && typeof(cb) === 'function') {
+            cb(null);
+          }
         }
       });
     }
@@ -213,7 +220,9 @@ var calculateDistribution = function(cb){
     if (err){
       logger.error('getAllKeys()', err);
     }
-    cb(err, res);
+    if (cb && typeof(cb) === 'function') {
+      cb(err, res);
+    }
   });
 
   function _getAllKeysParrallel (item){
@@ -229,12 +238,18 @@ var getAllKeys = function(node, cb){
   node.client.keys("PB:Q|*", function onGet(err, res){
     if (err){
       logger.error('getKeys()', err);
-      cb(err);
+      if (cb && typeof(cb) === 'function') {
+        cb(err);
+      }
     }
     else {
       async.map(res, function transform(item, callback){
         callback(null, pattern.exec(item)[0]);
-      }, cb);
+      }, function (err, res) {
+        if (cb && typeof(cb) === 'function') {
+          cb(err, res);
+        }
+      });
     }
   });
 };
@@ -320,18 +335,6 @@ calculateDistribution(function(err, items){
     }
   }
 });
-
-setTimeout(function(){
-  hashing.removeNode('redis1');
-  redistributeRemove('redis1', function(err){
-    console.log(err);
-  });
-}, 60000);
-
-setTimeout(function(){
-  console.log("añadiendo nodo");
-  addNode('redis3', 'localhost', 7777);
-}, 30000);
 
 /**
  *

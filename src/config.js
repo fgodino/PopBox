@@ -188,6 +188,12 @@ exports.agent.maxMessages = 1000;
 exports.agent.port = 3001;
 
 /**
+ *
+ * @type {Number}
+ */
+exports.agent.adminPort = 63001;
+
+/**
  * Provision timeout
  * @type {Number} seconds
  */
