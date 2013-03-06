@@ -77,10 +77,15 @@ for (var i = 0; i < redisNodes.length; i++) {
 
 var addNode = function(name, host, port){
   logger.info('Adding new node ', name + ' - ' + host + ':' + port);
-  hashing.addNode(name);
   var client = createClient(port, host);
   redisNodes[name] = {host: host, port: port, client : client};
-  redistributeAdd(name);
+  redistributeRemove(name, function(err){
+    hashing.addNode(name);
+    redistributeAdd(name, function(err){
+      logger.info('New node added', name + ' - ' + host + ':' + port);
+    });
+  });
+
 };
 
 var getDb = function(queueId) {
@@ -97,7 +102,7 @@ var getOwnDb = function(queueId, callback) {
   pool.get(queueId, callback);
 };
 
-var redistributeAdd = function(newNode){
+var redistributeAdd = function(newNode, cb){
   calculateDistribution(function distribution(err, items){
     if (!err) {
       for (var node in items){
@@ -114,8 +119,16 @@ var redistributeAdd = function(newNode){
             migrateKeys(node, newNode, keys, function(err){
               if (err){
                 logger.error('migrateKeys()', err);
+                if (cb && typeof(cb) === 'function') {
+                  cb(err);
+                }
               }
             });
+          }
+          else {
+            if (cb && typeof(cb) === 'function') {
+                  cb(err);
+            }
           }
         }
       }
@@ -123,26 +136,36 @@ var redistributeAdd = function(newNode){
   });
 };
 
-/* Cambiar todo esto, chapuza
-var redistributeRemove = function (nodeName) {
+var redistributeRemove = function (nodeName, cb) {
+  redistributionObj = {}
   getAllKeys(redisNodes[nodeName], function(err, keys){
     if (err){
       logger.error('getAllKeys', err);
     }
     else {
       for (var i = 0; i < keys.length; i++){
-        var nextRealNode, vNode = hashing.getVNode(keys[i]);
-        console.log(vNode);
-        while ((nextRealNode = hashing.getNextRealNode(vNode)) === nodeName){
-          //console.log(vNode);
-          vNode = hashing.getNextVNode(vNode);
+        var nodeTo = hashing.getNode(keys[i]);
+        console.log(nodeTo);
+        if(!redistributionObj.hasOwnProperty(nodeTo)){
+          redistributionObj[nodeTo] = [];
         }
-        console.log(nextRealNode);
+        redistributionObj[nodeTo].push(keys[i]);
+      }
+      for (var nodeTo in redistributionObj){
+        var keysToMigrate = redistributionObj[nodeTo];
+        migrateKeys(nodeName, nodeTo, keysToMigrate, function (err){
+          if (err){
+            logger.error('migrateKeys()', err);
+            cb(err);
+          }
+          else {
+            cb(null);
+          }
+        });
       }
     }
   })
 };
-*/
 
 
 
@@ -202,7 +225,7 @@ var calculateDistribution = function(cb){
 
 var getAllKeys = function(node, cb){
 
-  var pattern=/\w+$/;
+  var pattern=/[^:]+$/;
   node.client.keys("PB:Q|*", function onGet(err, res){
     if (err){
       logger.error('getKeys()', err);
@@ -298,7 +321,17 @@ calculateDistribution(function(err, items){
   }
 });
 
-  redistributeRemove('redis1');
+setTimeout(function(){
+  hashing.removeNode('redis1');
+  redistributeRemove('redis1', function(err){
+    console.log(err);
+  });
+}, 60000);
+
+setTimeout(function(){
+  console.log("añadiendo nodo");
+  addNode('redis3', 'localhost', 7777);
+}, 30000);
 
 /**
  *

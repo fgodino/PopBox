@@ -60,7 +60,7 @@ var getNodePosition = function(hash) {
     }
   }
   if (up < 0) {
-    upper = keys.length - 1;
+    up = keys.length - 1;
   }
   return up;
 };
