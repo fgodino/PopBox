@@ -22,6 +22,7 @@
 //clustering and database management (object)
 
 var redisModule = require('redis');
+var net = require('net');
 var config = require('./config.js');
 var poolMod = require('./pool.js');
 var hashing = require('./consistent_hashing.js');
@@ -77,8 +78,9 @@ for (var i = 0; i < redisNodes.length; i++) {
 
 var addNode = function(name, host, port){
   logger.info('Adding new node ', name + ' - ' + host + ':' + port);
-  var client = createClient(port, host);
-  redisNodes[name] = {host: host, port: port, client : client};
+  var redisClient = createClient(port, host);
+  var netClient = net.connect({host: host,port: port});
+  redisNodes[name] = {host: host, port: port, redisClient : client, netClient : netClient};
   redistributeRemove(name, function(err){
     hashing.addNode(name);
     redistributeAdd(name, function(err){
@@ -90,7 +92,7 @@ var addNode = function(name, host, port){
 var getDb = function(queueId) {
   'use strict';
   var node = hashing.getNode(queueId);
-  return redisNodes[node].client;
+  return redisNodes[node].netClient;
 };
 
 var getOwnDb = function(queueId, callback) {
@@ -173,20 +175,10 @@ var redistributeRemove = function (nodeName, cb) {
 
 
 var migrateKeys = function(from, to, keys, cb) {
-  var clientFrom = redisNodes[from].client;
-  var clientTo = redisNodes[to].client;
-  var keysPrefix = [];
+  var clientFrom = redisNodes[from].redisClient;
+  var clientTo = redisNodes[to].redisClient;
 
-  for (var i = 0; i < keys.length; i++){
-    var queueId = keys[i];
-    var fullQueueIdHSec = config.dbKeyQueuePrefix + 'H:SEC:' + queueId;
-    var fullQueueIdLSec = config.dbKeyQueuePrefix + 'L:SEC:' + queueId;
-    var fullQueueIdHUnsec = config.dbKeyQueuePrefix + 'H:UNSEC:' + queueId;
-    var fullQueueIdLUnsec = config.dbKeyQueuePrefix + 'L:UNSEC:' + queueId;
-    keysPrefix.push(fullQueueIdLUnsec,fullQueueIdHUnsec, fullQueueIdLSec, fullQueueIdHSec);
-  }
-
-  lua.getQueues(keysPrefix, clientFrom, function gotQueues (err, resGet){
+  lua.getQueues(keys, clientFrom, function gotQueues (err, resGet){
     if (err){
       logger.error('getQueues()', 'Failed to get redis Queues : ' + err);
       cb(err);
@@ -200,7 +192,7 @@ var migrateKeys = function(from, to, keys, cb) {
           }
         }
         else {
-          lua.deleteQueues(keysPrefix, clientFrom);
+          lua.deleteQueues(keys, clientFrom);
           if (cb && typeof(cb) === 'function') {
             cb(null);
           }
@@ -235,7 +227,7 @@ var calculateDistribution = function(cb){
 var getAllKeys = function(node, cb){
 
   var pattern=/[^:]+$/;
-  node.client.keys("PB:Q|*", function onGet(err, res){
+  node.redisClient.keys("PB:Q|*", function onGet(err, res){
     if (err){
       logger.error('getKeys()', err);
       if (cb && typeof(cb) === 'function') {
@@ -293,8 +285,10 @@ for (var node in redisNodes) {
   var port = redisNodes[node].port || redisModule.DEFAULT_PORT;
   var host = redisNodes[node].host;
   var cli = createClient(port, host);
+  var netCli = net.connect({port : port, host : host});
 
-  redisNodes[node].client = cli;
+  redisNodes[node].redisClient = cli;
+  redisNodes[node].netClient = netCli;
 
   require('./hookLogger.js').initRedisHook(cli, logger);
 
