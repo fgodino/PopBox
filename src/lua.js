@@ -6,9 +6,6 @@
  * To change this template use File | Settings | File Templates.
  */
 
-var redisModule = require('redis');
-var config = require('./config.js');
-
 var deleteScript = "\
 for j, k in pairs(KEYS) do\n\
     redis.call('del', k)\n\

@@ -22,11 +22,9 @@
 
 var config = require('./config.js');
 
-require('./clientInterface.js')
-
 var path = require('path');
 var log = require('PDITCLogger');
-var deployInfo = require('./deployInfo.js');
+//var deployInfo = require('./deployInfo.js');
 
 log.setConfig(config.logger);
 var logger = log.newLogger();
@@ -42,8 +40,6 @@ var dirModule = path.dirname(module.filename);
 var prefixer = require('./prefixer');
 var sendrender = require('./sendRender');
 var pdilogger = require('./pdiLogger');
-
-var promoteSlave = require('./promoteExprMdwr.js');
 
 logger.info('Node version:', process.versions.node);
 logger.info('V8 version:', process.versions.v8);
@@ -137,8 +133,7 @@ if (cluster.isMaster && numCPUs !== 0) {
     server.use(prefixer.prefixer(server.prefix));
     server.use(sendrender.sendRender());
     server.use(pdilogger.pdiLogger());
-    server.use(promoteSlave.checkAndPromote());
-    server.get('/', deployInfo.showDeployInfo);
+    //server.get('/', deployInfo.showDeployInfo);
     server.del('/trans/:id_trans', logic.deleteTrans);
     //app.get('/trans/:id_trans/state/:state?', logic.transState);
     server.get('/trans/:id_trans', logic.transMeta);

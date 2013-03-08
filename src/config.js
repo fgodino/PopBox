@@ -36,7 +36,7 @@ exports.logger = {};
 exports.logger.logLevel = 'debug';
 exports.logger.inspectDepth = 1;
 exports.logger.Console = {
-  level: 'info', timestamp: true
+  level: 'debug', timestamp: true
 };
 exports.logger.File = {
   level: 'debug', filename: dir_prefix +
@@ -57,45 +57,8 @@ exports.slave = false;
  */
 exports.showDeployInformation = true;
 
-/**
- *
- * @type {Array} ex. [{host:'localhost'}, {host:'localhost', port:'6789'}]
- */
-//exports.redisServers = [{host:'localhost'}, {host:'localhost', port:'6789'}];
-exports.redisServers = {
-  redis1 : {host: 'localhost', port: 6379},
-  redis2 : {host: 'localhost', port: 8888}
-};
 
-exports.hashing = {};
-exports.hashing.replicas = 10;
-exports.hashing.algorithm = 'md5';
-
-/**
- * One to One relationship with redisServers
- * @type {Array} ex. [{host:'localhost'}, {host:'localhost', port:'6789'}]
- */
-exports.masterRedisServers = [];
-
-/**
- *
- * @type {Object} ex. { host:'hostname', port: 'port'}
- *
- */
-exports.tranRedisServer = {host: 'localhost', port: 6379};
-
-/**
- *
- * @type {Object} ex. { host:'hostname', port: 'port'}
- *
- */
-exports.masterTranRedisServer = {};
-
-/**
- *
- * @type {Number}
- */
-exports.selectedDB = 0; //0..15 for   0 ->pre-production 1->test
+exports.proxyServer = {host : 'localhost', port : 8124};
 
 /**
  *

@@ -1,5 +1,5 @@
 var crypto = require('crypto'),
-config = require('./config.js');
+config = require('./configProxy.js');
 
 
 var replicas = config.hashing.replicas;

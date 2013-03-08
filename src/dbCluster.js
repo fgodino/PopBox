@@ -23,8 +23,7 @@
 
 var redisModule = require('redis');
 var net = require('net');
-var config = require('./config.js');
-var poolMod = require('./pool.js');
+var config = require('./configProxy.js');
 var hashing = require('./consistent_hashing.js');
 var async = require('async');
 var lua = require('./lua.js');
@@ -35,46 +34,9 @@ var logger = log.newLogger();
 
 
 var redisNodes = config.redisServers;
-/**
- *
- * @param rc
- * @param masterHost
- * @param masterPort
- */
-var slaveOf = function(rc, masterHost, masterPort) {
-  'use strict';
-  if (! (masterHost && masterPort)) {
-    logger.error('Masters must be defined in slave' +
-        ' configuration. Look at configFile');
-    throw 'fatalError';
-  }
-
-  rc.slaveof(masterHost, masterPort, function(err) {
-    if (err) {
-      logger.error('slaveOf(rc, masterHost, masterPort):: ' + err);
-      throw 'fatalError';
-    }
-  });
-};
 
 logger.prefix = path.basename(module.filename, '.js');
 
-var transactionDbClient = createClient(config.tranRedisServer.port ||
-    redisModule.DEFAULT_PORT, config.tranRedisServer.host);
-require('./hookLogger.js').initRedisHook(transactionDbClient, logger);
-if (config.slave) {
-  slaveOf(transactionDbClient, config.masterTranRedisServer.host,
-      config.masterTranRedisServer.port);
-}
-
-transactionDbClient.select(config.selectedDB); //false pool for pushing
-
-//Create the pool array - One pool for each server
-/*var poolArray = [];
-for (var i = 0; i < redisNodes.length; i++) {
-  var pool = poolMod.Pool(i);
-  poolArray.push(pool);
-}*/
 
 var addNode = function(name, host, port){
   logger.info('Adding new node ', name + ' - ' + host + ':' + port);
@@ -97,8 +59,6 @@ var getDb = function(queueId) {
 
 var getOwnDb = function(queueId, callback) {
   'use strict';
-  var hash = hashMe(queueId, redisNodes.length);
-  //get the pool
   var pool = poolArray[hash];
   pool.get(queueId, callback);
 };
@@ -226,46 +186,13 @@ var calculateDistribution = function(cb){
 
 var getAllKeys = function(node, cb){
 
-  var pattern=/[^:]+$/;
   node.redisClient.keys("PB:Q|*", function onGet(err, res){
     if (err){
       logger.error('getKeys()', err);
-      if (cb && typeof(cb) === 'function') {
-        cb(err);
-      }
     }
-    else {
-      async.map(res, function transform(item, callback){
-        callback(null, pattern.exec(item)[0]);
-      }, function (err, res) {
-        if (cb && typeof(cb) === 'function') {
-          cb(err, res);
-        }
-      });
+    if (cb && typeof(cb) === 'function') {
+      cb(err, res);
     }
-  });
-};
-
-var getTransactionDb = function(transactionId) {
-  'use strict';
-  //return a client for transactions
-  return transactionDbClient;
-
-};
-
-var free = function (db) {
-  'use strict';
-  //return to the pool TechDebt
-  if (db.isOwn) {
-    db.pool.free(db);
-  }
-};
-
-var promoteMaster = function() {
-  'use strict';
-  transactionDbClient.slaveof('NO', 'ONE');
-  queuesDbArray.forEach(function(db) {
-    db.slaveof('NO', 'ONE');
   });
 };
 
@@ -330,6 +257,12 @@ calculateDistribution(function(err, items){
   }
 });
 
+var createPipes = function(socket){
+  for(var node in redisNodes){
+    redisNodes[node].netClient.pipe(socket);
+  }
+}
+
 /**
  *
  * @param {string} queu_id identifier.
@@ -337,29 +270,6 @@ calculateDistribution(function(err, items){
  */
 exports.getDb = getDb;
 
-/**
- *
- * @param {string} queuw_id identifier.
- * @return {RedisClient} rc redis client for QUEUES.
- */
-exports.getOwnDb = getOwnDb;
-/**
- *
- * @param {string} transaction_id valid uuid identifier.
- * @return {RedisClient}  rc redis Client for Transactions.
- */
-exports.getTransactionDb = getTransactionDb;
-
-/**
- *
- * @param {RedisClient} db Redis DB to be closed.
- */
-exports.free = free;
-
-/**
- *
- * @type {Function}
- */
-exports.promoteMaster = promoteMaster;
+exports.createPipes = createPipes;
 
 require('./hookLogger.js').init(exports, logger);
