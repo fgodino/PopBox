@@ -38,9 +38,12 @@ exports.hashing = {};
 exports.hashing.replicas = 10;
 exports.hashing.algorithm = 'md5';
 
+exports.adminPort = 2300;
 /**
  *
  * @type {Number}
  */
 
 exports.selectedDB = 0; //0..15 for   0 ->pre-production 1->test
+
+exports.migrationTimeout = 100000;

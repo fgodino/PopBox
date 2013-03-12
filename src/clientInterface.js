@@ -1,9 +1,11 @@
 var net = require('net'),
-    config = require('./config.js');
+    config = require('./configProxy.js');
 
 var path = require('path');
 var log = require('PDITCLogger');
 var logger = log.newLogger();
+
+var dbCluster = require('./dbCluster.js');
 
 logger.prefix = path.basename(module.filename, '.js');
 
@@ -28,8 +30,8 @@ var handler = function(socket){
 
 var server = net.createServer(handler);
 
-server.listen(config.agent.adminPort, function() { //'listening' listener
-  logger.info('Admin server connected - port: ' + config.agent.adminPort);
+server.listen(config.adminPort, function() { //'listening' listener
+  logger.info('Admin server connected - port: ' + config.adminPort);
 });
 
 function cleanInput(data) {
@@ -45,8 +47,14 @@ var options = function(data, socket){
             socket.end('Bye!\n');
             break;
         case 'addserver' :
+            dbCluster.addNode(commands[1], commands[2], commands[3], function(err){
+                console.log(err);
+            });
             break;
         case 'delserver' :
+            dbCluster.removeNode(commands[1], function(err){
+                console.log(err);
+            });
             break;
         default :
             socket.write('Invalid Command\n');

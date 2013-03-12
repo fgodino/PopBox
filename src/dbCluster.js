@@ -26,7 +26,7 @@ var net = require('net');
 var config = require('./configProxy.js');
 var hashing = require('./consistent_hashing.js');
 var async = require('async');
-var lua = require('./lua.js');
+var pipeMngr = require('./pipeMngr.js');
 
 var path = require('path');
 var log = require('PDITCLogger');
@@ -38,22 +38,57 @@ var redisNodes = config.redisServers;
 logger.prefix = path.basename(module.filename, '.js');
 
 
-var addNode = function(name, host, port){
+var addNode = function(name, host, port, cb){
   logger.info('Adding new node ', name + ' - ' + host + ':' + port);
-  var redisClient = createClient(port, host);
-  var netClient = net.connect({host: host,port: port});
-  redisNodes[name] = {host: host, port: port, redisClient : client, netClient : netClient};
-  redistributeRemove(name, function(err){
-    hashing.addNode(name);
-    redistributeAdd(name, function(err){
-      logger.info('New node added', name + ' - ' + host + ':' + port);
+  if(redisNodes.hasOwnProperty(name)){
+    logger.warning('addNode()', 'Node ' + name + ' already exists, wont be added');
+  }
+  else {
+    var redisClient = createClient(port, host, function(err){
+      if(err){
+        cb(err);
+      }
+      else {
+        var netClient = net.connect({host: host,port: port});
+        pipeMngr.newRedisSocket(netClient);
+        redisNodes[name] = {host: host, port: port, redisClient : redisClient, netClient : netClient};
+        redistributeRemove(name, function(err){
+          hashing.addNode(name);
+          redistributeAdd(name, function(err){
+            logger.info('New node added', name + ' - ' + host + ':' + port);
+          });
+        });
+      }
     });
-  });
+  }
+};
+
+var removeNode = function(name, cb) {
+  logger.info('Removing node', name);
+  if(!redisNodes.hasOwnProperty(name)){
+    logger.warning('removeNode()', 'Node ' + name + ' does not exist, wont be removed');
+  }
+  else {
+    hashing.removeNode(name);
+    redistributeRemove(name, function(err){
+      if (err){
+        cb(err);
+      }
+      else {
+        logger.info('Node \'' + name + '\' removed');
+        redisNodes[name].netClient.end();
+        redisNodes[name].redisClient.quit();
+        pipeMngr.removeClientSocket(redisNodes[name].netClient);
+        cb(null);
+      }
+    });
+  }
 };
 
 var getDb = function(queueId) {
   'use strict';
   var node = hashing.getNode(queueId);
+  logger.info('getDb()', node);
   return redisNodes[node].netClient;
 };
 
@@ -64,6 +99,7 @@ var getOwnDb = function(queueId, callback) {
 };
 
 var redistributeAdd = function(newNode, cb){
+  redistributionFunctions = [];
   calculateDistribution(function distribution(err, items){
     if (!err) {
       for (var node in items){
@@ -77,14 +113,7 @@ var redistributeAdd = function(newNode, cb){
             }
           }
           if(keys.length > 0){
-            migrateKeys(node, newNode, keys, function(err){
-              if (err){
-                logger.error('migrateKeys()', err);
-                if (cb && typeof(cb) === 'function') {
-                  cb(err);
-                }
-              }
-            });
+            redistributionFunctions.push(migrateAll(node, newNode, keys));
           }
           else {
             if (cb && typeof(cb) === 'function') {
@@ -93,12 +122,27 @@ var redistributeAdd = function(newNode, cb){
           }
         }
       }
+      async.parallel(redistributionFunctions, function (err){
+        if (err){
+          logger.error('migrateKeys()', err);
+        }
+        if (cb && typeof(cb) === 'function') {
+          cb(err);
+        }
+      });
     }
   });
+
+  function migrateAll(nodeName, nodeTo, keys){
+    return function(callback){
+      migrateKeys(nodeName, nodeTo, keys, callback);
+    }
+  }
 };
 
 var redistributeRemove = function (nodeName, cb) {
-  redistributionObj = {}
+  redistributionObj = {}, redistributionFunctions = [];
+
   getAllKeys(redisNodes[nodeName], function(err, keys){
     if (err){
       logger.error('getAllKeys', err);
@@ -106,7 +150,6 @@ var redistributeRemove = function (nodeName, cb) {
     else {
       for (var i = 0; i < keys.length; i++){
         var nodeTo = hashing.getNode(keys[i]);
-        console.log(nodeTo);
         if(!redistributionObj.hasOwnProperty(nodeTo)){
           redistributionObj[nodeTo] = [];
         }
@@ -114,45 +157,16 @@ var redistributeRemove = function (nodeName, cb) {
       }
       for (var nodeTo in redistributionObj){
         var keysToMigrate = redistributionObj[nodeTo];
-        migrateKeys(nodeName, nodeTo, keysToMigrate, function (err){
-          if (err){
-            logger.error('migrateKeys()', err);
-            if (cb && typeof(cb) === 'function') {
-              cb(err);
-            }
-          }
-          else {
-            if (cb && typeof(cb) === 'function') {
-              cb(null);
-            }
-          }
-        });
+        redistributionFunctions.push(migrateAll(nodeName, nodeTo, keysToMigrate));
       }
-    }
-  });
-};
-
-
-
-var migrateKeys = function(from, to, keys, cb) {
-  var clientFrom = redisNodes[from].redisClient;
-  var clientTo = redisNodes[to].redisClient;
-
-  lua.getQueues(keys, clientFrom, function gotQueues (err, resGet){
-    if (err){
-      logger.error('getQueues()', 'Failed to get redis Queues : ' + err);
-      cb(err);
-    }
-    else {
-      lua.copyQueues(resGet, clientTo, function copied(err, resCopy){
+      async.parallel(redistributionFunctions, function (err){
         if (err){
-          logger.error('copyQueues()', 'Failed to copy redis queues : + ' + err);
+          logger.error('migrateKeys()', err);
           if (cb && typeof(cb) === 'function') {
             cb(err);
           }
         }
         else {
-          lua.deleteQueues(keys, clientFrom);
           if (cb && typeof(cb) === 'function') {
             cb(null);
           }
@@ -160,6 +174,25 @@ var migrateKeys = function(from, to, keys, cb) {
       });
     }
   });
+
+  function migrateAll(nodeName, nodeTo, keys){
+    return function(callback){
+      migrateKeys(nodeName, nodeTo, keys, callback);
+    }
+  }
+};
+
+var migrateKeys = function(from, to, keys, cb) {
+  var clientFrom = redisNodes[from].redisClient;
+  var clientTo = redisNodes[to].redisClient;
+  var clientToHost = redisNodes[to].host;
+  var clientToPort = redisNodes[to].port;
+
+  var multi = clientFrom.multi();
+  for (var i = 0; i < keys.length; i++){
+    multi.migrate(clientToHost, clientToPort, keys[i], config.selectedDB, config.migrationTimeout)
+  }
+  multi.exec(cb);
 };
 
 var calculateDistribution = function(cb){
@@ -186,7 +219,7 @@ var calculateDistribution = function(cb){
 
 var getAllKeys = function(node, cb){
 
-  node.redisClient.keys("PB:Q|*", function onGet(err, res){
+  node.redisClient.keys("*", function onGet(err, res){
     if (err){
       logger.error('getKeys()', err);
     }
@@ -196,16 +229,25 @@ var getAllKeys = function(node, cb){
   });
 };
 
-function createClient(port, host){
+function createClient(port, host, cb){
   var cli = redisModule.createClient(port, host);
 
   cli.on('error', function(err){
     logger.warning('createClient()', err);
+    if (cb && typeof(cb) === 'function') {
+      cb(err);
+    }
+  });
+
+  cli.on('ready', function(){
+    logger.debug('createClient()', 'ready');
+    if (cb && typeof(cb) === 'function') {
+      cb(null);
+    }
   });
 
   return cli;
 }
-
 
 // Init Nodes and functions
 for (var node in redisNodes) {
@@ -216,6 +258,8 @@ for (var node in redisNodes) {
 
   redisNodes[node].redisClient = cli;
   redisNodes[node].netClient = netCli;
+
+  pipeMngr.addRedisSocket(netCli);
 
   require('./hookLogger.js').initRedisHook(cli, logger);
 
@@ -257,12 +301,6 @@ calculateDistribution(function(err, items){
   }
 });
 
-var createPipes = function(socket){
-  for(var node in redisNodes){
-    redisNodes[node].netClient.pipe(socket);
-  }
-}
-
 /**
  *
  * @param {string} queu_id identifier.
@@ -270,6 +308,8 @@ var createPipes = function(socket){
  */
 exports.getDb = getDb;
 
-exports.createPipes = createPipes;
+exports.addNode = addNode;
+
+exports.removeNode = removeNode;
 
 require('./hookLogger.js').init(exports, logger);
