@@ -1,35 +1,51 @@
 var net = require('net');
-var hiredis = require("hiredis"),
-    reader = new hiredis.Reader();
+var Parser = require('./hiredis.js').Parser;
 
 var path = require('path');
 var log = require('PDITCLogger');
 var logger = log.newLogger();
+var commands = require('./proxyCommands.js');
+var dbCluster = require('./dbCluster.js');
 
 logger.prefix = path.basename(module.filename, '.js');
 
 var clientInterface = require('./clientInterface.js');
 
-var pipeMngr = require('./pipeMngr.js')
-var dbCluster = require('./dbCluster.js');
 
 var server = net.createServer(function(c) { //'connection' listener
 
-  pipeMngr.newClientSocket(c);
-
-  c.on('end', function() {
-    pipeMngr.removeClientSocket(c);
-  });
+  var parser = new Parser();
 
   c.on('data', function(data){
-    reader.feed(data);
-    var id = reader.get()[1];
-    if(id){
+    try {
+      parser.execute(data);
+    } catch (err) {
+      console.log(err);
+    }
+  });
+
+  parser.on('error', function() {
+    throw new Error('bad');
+  });
+
+  parser.on('reply', function(reply, data) {
+    if (commands.indexOf(reply[0].toLowerCase()) < 0){
+      c.write('-ERROR\r\n');
+    }
+    else {
+      var id = reply[1];
       var client = dbCluster.getDb(id);
       client.write(data);
+      client.on('data', function(data){
+        c.write(data);
+      });
     }
   });
 });
+
+
+
+
 
 server.listen(8124, function() { //'listening' listener
   logger.info('server bound');
