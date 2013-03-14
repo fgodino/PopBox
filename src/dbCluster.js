@@ -26,7 +26,6 @@ var net = require('net');
 var config = require('./configProxy.js');
 var hashing = require('./consistent_hashing.js');
 var async = require('async');
-var pipeMngr = require('./pipeMngr.js');
 
 var path = require('path');
 var log = require('PDITCLogger');
@@ -47,10 +46,8 @@ var addNode = function(name, host, port, cb){
     var redisClient = createClient(port, host, function(err){
       if(err){
         cb(err);
-      }
-      else {
+      } else {
         var netClient = net.connect({host: host,port: port});
-        pipeMngr.newRedisSocket(netClient);
         redisNodes[name] = {host: host, port: port, redisClient : redisClient, netClient : netClient};
         redistributeRemove(name, function(err){
           hashing.addNode(name);
@@ -63,22 +60,48 @@ var addNode = function(name, host, port, cb){
   }
 };
 
+var getGlobalResponse = function (req, cb){
+  var requestFunctions = [];
+
+  for (var node in redisNodes){
+    requestFunctions.push(getOneResponse(redisNodes[node].netClient, req));
+  }
+  async.parallel(requestFunctions, cb);
+
+  function getOneResponse(client, req){
+    return function _getOneResponse (callback){
+      client.write(req);
+      client.on('data', function(res){
+        callback(null, res)
+      });
+      client.on('error', function(err){
+        callback(err)
+      });
+    }
+  };
+};
+
+var getAddressNodes = function() {
+  var addresses = [];
+  for(var key in redisNodes){
+    addresses.push(redisNodes[key].host + ':' + redisNodes[key].port);
+  }
+  return addresses;
+};
+
 var removeNode = function(name, cb) {
   logger.info('Removing node', name);
   if(!redisNodes.hasOwnProperty(name)){
     logger.warning('removeNode()', 'Node ' + name + ' does not exist, wont be removed');
-  }
-  else {
+  } else {
     hashing.removeNode(name);
     redistributeRemove(name, function(err){
       if (err){
         cb(err);
-      }
-      else {
+      } else {
         logger.info('Node \'' + name + '\' removed');
         redisNodes[name].netClient.end();
         redisNodes[name].redisClient.quit();
-        pipeMngr.removeClientSocket(redisNodes[name].netClient);
         cb(null);
       }
     });
@@ -114,8 +137,7 @@ var redistributeAdd = function(newNode, cb){
           }
           if(keys.length > 0){
             redistributionFunctions.push(migrateAll(node, newNode, keys));
-          }
-          else {
+          } else {
             if (cb && typeof(cb) === 'function') {
               cb(err);
             }
@@ -146,8 +168,7 @@ var redistributeRemove = function (nodeName, cb) {
   getAllKeys(redisNodes[nodeName], function(err, keys){
     if (err){
       logger.error('getAllKeys', err);
-    }
-    else {
+    } else {
       for (var i = 0; i < keys.length; i++){
         var nodeTo = hashing.getNode(keys[i]);
         if(!redistributionObj.hasOwnProperty(nodeTo)){
@@ -165,8 +186,7 @@ var redistributeRemove = function (nodeName, cb) {
           if (cb && typeof(cb) === 'function') {
             cb(err);
           }
-        }
-        else {
+        } else {
           if (cb && typeof(cb) === 'function') {
             cb(null);
           }
@@ -259,8 +279,6 @@ for (var node in redisNodes) {
   redisNodes[node].redisClient = cli;
   redisNodes[node].netClient = netCli;
 
-  pipeMngr.addRedisSocket(netCli);
-
   require('./hookLogger.js').initRedisHook(cli, logger);
 
   if (config.slave) {
@@ -311,5 +329,9 @@ exports.getDb = getDb;
 exports.addNode = addNode;
 
 exports.removeNode = removeNode;
+
+exports.getAddressNodes = getAddressNodes;
+
+exports.getGlobalResponse = getGlobalResponse;
 
 require('./hookLogger.js').init(exports, logger);

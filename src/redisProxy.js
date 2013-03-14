@@ -25,12 +25,15 @@ var server = net.createServer(function(c) { //'connection' listener
   });
 
   parser.on('error', function() {
-    throw new Error('bad');
+    throw new Error('lalala');
   });
 
   parser.on('reply', function(reply, data) {
-    if (commands.indexOf(reply[0].toLowerCase()) < 0){
-      c.write('-ERROR\r\n');
+    if (commands.indexOf(reply[0].toLowerCase()) < 0 || reply.length < 2){
+      dbCluster.getGlobalResponse(data, function(err, res){
+        console.log(res);
+        c.write(createMultiBulk(res));
+      });
     }
     else {
       var id = reply[1];
@@ -43,8 +46,13 @@ var server = net.createServer(function(c) { //'connection' listener
   });
 });
 
-
-
+var createMultiBulk = function (array){
+  var res = '*' + array.length + '\r\n';
+  for (var i = 0; i < array.length; i++) {
+    res += array[i];
+  }
+  return res;
+};
 
 
 server.listen(8124, function() { //'listening' listener
