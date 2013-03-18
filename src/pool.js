@@ -27,7 +27,9 @@ var net = require('net');
 var path = require('path');
 var log = require('PDITCLogger');
 var logger = log.newLogger();
+var pipeMgr = require('./pipeMgr.js');
 logger.prefix = path.basename(module.filename, '.js');
+
 
 var Pool = function Pool(host, port) {
   'use strict';
@@ -48,6 +50,7 @@ Pool.prototype.get = function() {
   else if (!con && this.currentConnections < this.maxElems) {
     con = net.connect({port : this.port, host : this.host});
     con.pool = this; //add pool reference
+    pipeMgr.newRedisSocket(con);
     this.currentConnections++;
     con.on('error', function(err) {
       console.log('error - redis', err);

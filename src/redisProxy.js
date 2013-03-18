@@ -7,6 +7,9 @@ var log = require('PDITCLogger');
 var logger = log.newLogger();
 var commands = require('./proxyCommands.js');
 var dbCluster = require('./dbCluster.js');
+var pipeMgr = require('./pipeMgr.js');
+
+process.setMaxListeners(20);
 
 logger.prefix = path.basename(module.filename, '.js');
 
@@ -16,6 +19,7 @@ var clientInterface = require('./clientInterface.js');
 var server = net.createServer(function(c) { //'connection' listener
 
   console.log('conectado');
+  pipeMgr.newClientSocket(c);
   c.on('data', function(data){
     try {
       reader.feed(data);
@@ -30,14 +34,7 @@ var server = net.createServer(function(c) { //'connection' listener
         var id = reply[1];
         var client = dbCluster.getDb(id);
         client.write(data, function(){
-          client.on('readable', function(){
-            var data = client.read();
-            if (data){
-              c.write(data);
-            } else {
-              dbCluster.free(client);
-            }
-          });
+          dbCluster.free(client);
         });
       }
     } catch (err) {
