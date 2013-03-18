@@ -12,7 +12,7 @@ if (process.env.POPBOX_DIR_PREFIX) {
  * @type {String}
  */
 exports.logger = {};
-exports.logger.logLevel = 'debug';
+exports.logger.logLevel = 'info';
 exports.logger.inspectDepth = 1;
 exports.logger.Console = {
   level: 'info', timestamp: true
@@ -43,6 +43,13 @@ exports.adminPort = 2300;
  *
  * @type {Number}
  */
+
+ exports.pool = {};
+/**
+ *
+ * @type {Number}
+ */
+exports.pool.maxElems = 10000;
 
 exports.selectedDB = 0; //0..15 for   0 ->pre-production 1->test
 

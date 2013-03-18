@@ -81,7 +81,6 @@ describe('Invalid Data in JSON', function() {
         contentParsed.should.have.property('callback', CALLBACK);
 
         QUEUES.should.include(contentParsed.queue);
-
         if (++receivedPetitions == QUEUES.length) {
           srv.close();
           done();

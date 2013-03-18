@@ -26,6 +26,7 @@ var net = require('net');
 var config = require('./configProxy.js');
 var hashing = require('./consistent_hashing.js');
 var async = require('async');
+var Pool = require('./pool.js');
 
 var path = require('path');
 var log = require('PDITCLogger');
@@ -47,8 +48,8 @@ var addNode = function(name, host, port, cb){
       if(err){
         cb(err);
       } else {
-        var netClient = net.connect({host: host,port: port});
-        redisNodes[name] = {host: host, port: port, redisClient : redisClient, netClient : netClient};
+        var pool = new Pool(host, port);
+        redisNodes[name] = {host: host, port: port, redisClient : redisClient, pool : pool};
         redistributeRemove(name, function(err){
           hashing.addNode(name);
           redistributeAdd(name, function(err){
@@ -64,7 +65,8 @@ var getGlobalResponse = function (req, cb){
   var requestFunctions = [];
 
   for (var node in redisNodes){
-    requestFunctions.push(getOneResponse(redisNodes[node].netClient, req));
+    var netClient = redisNodes[node].pool.get();
+    requestFunctions.push(getOneResponse(netClient, req));
   }
   async.parallel(requestFunctions, cb);
 
@@ -100,7 +102,7 @@ var removeNode = function(name, cb) {
         cb(err);
       } else {
         logger.info('Node \'' + name + '\' removed');
-        redisNodes[name].netClient.end();
+        //redisNodes[name].netClient.end();
         redisNodes[name].redisClient.quit();
         cb(null);
       }
@@ -110,15 +112,15 @@ var removeNode = function(name, cb) {
 
 var getDb = function(queueId) {
   'use strict';
-  var node = hashing.getNode(queueId);
   logger.info('getDb()', node);
-  return redisNodes[node].netClient;
+  var node = hashing.getNode(queueId);
+  var pool = redisNodes[node].pool;
+  return pool.get();
 };
 
-var getOwnDb = function(queueId, callback) {
+var free = function (db) {
   'use strict';
-  var pool = poolArray[hash];
-  pool.get(queueId, callback);
+  db.pool.free(db);
 };
 
 var redistributeAdd = function(newNode, cb){
@@ -274,10 +276,9 @@ for (var node in redisNodes) {
   var port = redisNodes[node].port || redisModule.DEFAULT_PORT;
   var host = redisNodes[node].host;
   var cli = createClient(port, host);
-  var netCli = net.connect({port : port, host : host});
-
+  var pool = new Pool(host,port);
   redisNodes[node].redisClient = cli;
-  redisNodes[node].netClient = netCli;
+  redisNodes[node].pool = pool;
 
   require('./hookLogger.js').initRedisHook(cli, logger);
 
@@ -325,6 +326,8 @@ calculateDistribution(function(err, items){
  * @return {RedisClient} rc redis client for QUEUES.
  */
 exports.getDb = getDb;
+
+exports.free = free;
 
 exports.addNode = addNode;
 

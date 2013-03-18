@@ -15,3 +15,7 @@ exports.hostname = 'localhost';
  * @type {String}
  */
 exports.protocol = 'http';
+
+exports.redis = {};
+exports.redis.host = 'localhost';
+exports.redis.port = 8124;

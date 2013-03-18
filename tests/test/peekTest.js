@@ -10,7 +10,8 @@ var N_TRANS = 5;
 var QUEUE_NAME = 'TESTQUEUE';
 var MESSAGE_INDEX = 'Message ';
 
-var retrieveAllTranstactions = function(ids, done) {
+var retrieveAllTransactions = function(ids, done) {
+  console.log(ids);
   var options = { port: PORT, host: HOST,
     path: '/queue/' + QUEUE_NAME + '/peek', method: 'GET'};
 
@@ -22,6 +23,7 @@ var retrieveAllTranstactions = function(ids, done) {
     data.data.should.have.lengthOf(N_TRANS);
 
     var completed = 0;
+
 
     for (var i = 0; i < N_TRANS; i++) {
       data.data.should.include(MESSAGE_INDEX + i);
@@ -39,7 +41,6 @@ var retrieveAllTranstactions = function(ids, done) {
         data.should.have.property('queues');
         data.queues.should.have.property(QUEUE_NAME);
         data.queues.TESTQUEUE.should.have.property('state', 'Pending');
-
         completed++;
         if (completed == N_TRANS) {
           done();
@@ -86,7 +87,7 @@ var afterAll = function(rc, done) {
     //Test that the queue has the 5 transactions
     data.should.have.property('size', N_TRANS);
 
-    //Clean BBDD
+    console.log('limpia');
     rc.flushall(function(res) {
       rc.end();
 
@@ -104,7 +105,7 @@ describe('Peek from High Priority Queue', function() {
   before(function(done) {
 
     var completed = 0;
-    rc = require('redis').createClient(6379, 'localhost');
+    rc = require('redis').createClient(config.redis.port, config.redis.host, {no_ready_check : true});
 
     for (var i = 0; i < N_TRANS; i++) {
       var trans = {
@@ -121,7 +122,6 @@ describe('Peek from High Priority Queue', function() {
         headers: heads};
 
       utils.makeRequest(options, trans, function(err, response, data) {
-
         should.not.exist(err);
         data.should.have.property('data');
         ids[completed] = data.data;
@@ -134,17 +134,17 @@ describe('Peek from High Priority Queue', function() {
     }
   });
 
-  after(function(done) {
-    afterAll(rc, done);
-  });
-
   it('Should retrieve all the messages and trans' +
       ' state should not change', function(done) {
-    retrieveAllTranstactions(ids, done);
+    retrieveAllTransactions(ids, done);
   });
 
   it('Should retrieve 3 messages', function(done) {
     retrieveSomeTransactions(3, done);
+  });
+
+  after(function(done) {
+    afterAll(rc, done);
   });
 
 });
@@ -157,7 +157,7 @@ describe('Peek from Low Priority Queue', function() {
   before(function(done) {
 
     var completed = 0;
-    rc = require('redis').createClient(6379, 'localhost');
+    rc = require('redis').createClient(config.redis.port, config.redis.host, {no_ready_check : true});
 
     for (var i = 0; i < N_TRANS; i++) {
       var trans = {
@@ -192,7 +192,7 @@ describe('Peek from Low Priority Queue', function() {
 
   it('Should retrieve all the messages and trans' +
       ' state should not change', function(done) {
-    retrieveAllTranstactions(ids, done);
+    retrieveAllTransactions(ids, done);
   });
 
   it('Should retrieve 4 messages', function(done) {
@@ -209,7 +209,7 @@ describe('Peek from High and Low Priority Queue', function() {
   before(function(done) {
 
     var completed = 0;
-    rc = require('redis').createClient(6379, 'localhost');
+    rc = require('redis').createClient(config.redis.port, config.redis.host, {no_ready_check : true});
 
     for (var i = 0; i < N_TRANS; i++) {
       var trans = {
@@ -265,7 +265,7 @@ describe('Peek from High and Low Priority Queue', function() {
 
   it('Should retrieve all the messages and trans' +
       ' state should not change', function(done) {
-    retrieveAllTranstactions(ids, done);
+    retrieveAllTransactions(ids, done);
   });
 
   it('Should retrieve all the messages with high priority', function(done) {

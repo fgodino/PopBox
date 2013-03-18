@@ -141,7 +141,7 @@ describe('Invalid Data in JSON', function() {
     executeTest(trans, 'undefined payload', done);
   });
 
-  it('Undefined Payload', function(done) {
+  it('Payload too large', function(done) {
 
     var payload = '';
 

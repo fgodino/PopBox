@@ -2,7 +2,7 @@ var should = require('should');
 var async = require('async');
 var config = require('./config.js');
 var redis = require('redis'),
-    rc = redis.createClient(6379, 'localhost');
+    rc = redis.createClient(config.redis.port, config.redis.host, {no_ready_check : true});
 var utils = require('./utils.js');
 
 var trans, trans1 = {};

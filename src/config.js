@@ -36,7 +36,7 @@ exports.logger = {};
 exports.logger.logLevel = 'debug';
 exports.logger.inspectDepth = 1;
 exports.logger.Console = {
-  level: 'debug', timestamp: true
+  level: 'warning', timestamp: true
 };
 exports.logger.File = {
   level: 'debug', filename: dir_prefix +
@@ -210,13 +210,6 @@ exports.enableSecure = false;
  * @type {String} absolute path for the certs and keys. Default will be chosen when empty.
  */
 exports.agent.crtPath = '';
-
-exports.pool = {};
-/**
- *
- * @type {Number}
- */
-exports.pool.maxElems = 10000;
 
 
 /* generic event listener */

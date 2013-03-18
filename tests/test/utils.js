@@ -11,10 +11,12 @@ Array.prototype.contains = function(element) {
 
 var makeRequest = function(options, content, cb) {
   'use strict';
-  var data = '';
+
 
 
   var req = http.request(options, function(res) {
+
+    var data = '';
 
     var o; //returned object from request
     res.setEncoding('utf8');
