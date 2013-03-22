@@ -20,14 +20,13 @@
  */
 
 //Pool modeled via Connection array
-var config = require('./configProxy.js');
+var config = require('./config.js');
 var net = require('net');
 
 
 var path = require('path');
 var log = require('PDITCLogger');
 var logger = log.newLogger();
-var pipeMgr = require('./pipeMgr.js');
 logger.prefix = path.basename(module.filename, '.js');
 
 
@@ -42,15 +41,12 @@ var Pool = function Pool(host, port) {
 
 Pool.prototype.get = function() {
   if (this.connections.length > 0) {
-    console.log('Numero de conexiones', this.connections.length);
     var con = this.connections.pop();
-    console.log('Numero de conexiones despues', this.connections.length);
     return con;
   }
   else if (!con && this.currentConnections < this.maxElems) {
-    con = net.connect({port : this.port, host : this.host});
+    con = redis.createClient(this.port, this.host);
     con.pool = this; //add pool reference
-    pipeMgr.newRedisSocket(con);
     this.currentConnections++;
     con.on('error', function(err) {
       console.log('error - redis', err);
@@ -65,6 +61,6 @@ Pool.prototype.free = function (con) {
   this.connections.push(con);
 };
 
-module.exports = Pool;
+exports.Pool = Pool;
 
 require('./hookLogger.js').init(exports.Pool, logger);

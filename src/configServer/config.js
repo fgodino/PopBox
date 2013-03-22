@@ -34,6 +34,8 @@ exports.redisServers = {
   redis2 : {host: 'localhost', port: 8888}
 };
 
+exports.persistenceRedis = {host : 'localhost', port : 7777};
+
 exports.hashing = {};
 exports.hashing.replicas = 10;
 exports.hashing.algorithm = 'md5';

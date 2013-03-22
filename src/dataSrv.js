@@ -25,19 +25,17 @@
 
 //Require Area
 var config = require('./config.js');
+var dbCluster = require('./dbCluster.js');
 var helper = require('./dataHelper.js');
 var uuid = require('node-uuid');
 var async = require('async');
 var emitter = require('./emitterModule').getEmitter();
 var crypto = require('crypto');
-var redisModule = require('redis');
 
 var path = require('path');
 var log = require('PDITCLogger');
 var logger = log.newLogger();
 logger.prefix = path.basename(module.filename, '.js');
-
-var proxyDb = redisModule.createClient(config.proxyServer.port, config.proxyServer.host, {no_ready_check : true});
 
 //Private methods Area
 var pushTransaction = function(appPrefix, provision, callback) {
@@ -49,7 +47,7 @@ var pushTransaction = function(appPrefix, provision, callback) {
       transactionId = config.dbKeyTransPrefix + extTransactionId,
   //setting up the bach proceses for async module.
       processBatch = [],
-      dbTr = proxyDb,
+      dbTr = dbCluster.getTransactionDb(transactionId),
       i,
       queue;
 
@@ -104,13 +102,14 @@ var pushTransaction = function(appPrefix, provision, callback) {
 
   function processOneId(dbTr, transactionId, queue, priority) {
     return function processOneIdAsync(callback) {
-      var db = proxyDb;
+      var db = dbCluster.getDb(queue.id); //different DB for different Ids
       async.parallel([
         helper.pushParallel(db, {id: appPrefix + queue.id}, priority,
             transactionId),
         helper.hsetHashParallel(dbTr, queue, transactionId, ':state', 'Pending')
       ], function parallel_end(err) {
         var ev = null;
+        dbCluster.free(db);
         if (err) {
           manageError(err, callback);
         } else {
@@ -138,7 +137,7 @@ var pushTransaction = function(appPrefix, provision, callback) {
 var updateTransMeta = function(extTransactionId, provision, callback) {
   'use strict';
   var transactionId = config.dbKeyTransPrefix +
-      extTransactionId, dbTr = proxyServer;
+      extTransactionId, dbTr = dbCluster.getTransactionDb(transactionId);
 
   // curry for async (may be refactored)
 
@@ -174,7 +173,7 @@ var updateTransMeta = function(extTransactionId, provision, callback) {
 
 var setSecHash = function(appPrefix, queueId, user, passwd, callback) {
   'use strict';
-  var shasum = crypto.createHash('sha1'), digest, db = proxyDb;
+  var shasum = crypto.createHash('sha1'), digest, db = dbCluster.getDb(queueId);
 
   //TODO:  Overwrite existing value ???
   shasum.update(user + passwd);
@@ -184,7 +183,7 @@ var setSecHash = function(appPrefix, queueId, user, passwd, callback) {
 
 var getSecHash = function(appPrefix, queueId, cb) {
   'use strict';
-  var db = proxyDb;
+  var db = dbCluster.getDb(queueId);
   helper.getKey(db, appPrefix + queueId, cb);
 };
 
@@ -266,7 +265,14 @@ var blockingPop = function(appPrefix, queue,
   //Set the last PopAction over the queue
   var popDate = Math.round(Date.now() / 1000);
 
-  blockingPopAux(proxyDb);
+  dbCluster.getOwnDb(queueId, function(err, db) {
+    if (err) {
+      manageError(err, callback);
+    }
+    else {
+      blockingPopAux(db);
+    }
+  });
 
   function blockingPopAux(db) {
     db.set(config.dbKeyQueuePrefix + appPrefix + queueId + ':lastPopDate',
@@ -276,6 +282,7 @@ var blockingPop = function(appPrefix, queue,
     db.blpop(fullQueueIdH, fullQueueIdL, blockingTime,
         function onPopData(err, data) {
           if (err) {
+            dbCluster.free(db);
             manageError(err, callback);
           } else {
             //data:: A two-element multi-bulk with the first element being
@@ -283,6 +290,7 @@ var blockingPop = function(appPrefix, queue,
             // element being the value of the popped element.
             //if data == null => timeout || empty queue --> nothing to do
             if (! data) {
+              dbCluster.free(db);
               if (callback) {
                 callback(null, null);
               }
@@ -292,6 +300,7 @@ var blockingPop = function(appPrefix, queue,
               if (maxElems > 1) {
                 popNotification(db, appPrefix, queue, maxElems - 1,
                     function onPop(err, clean_data) {
+                      dbCluster.free(db); //add free() when pool
                       if (err) {
                         if (callback) {
                           err.data = true; //flag for err+data
@@ -304,6 +313,8 @@ var blockingPop = function(appPrefix, queue,
                       }
                     }, firstElem); //last optional param
               } else {
+                dbCluster.free(db);
+                //just first_elem
                 getPopData([
                   firstElem[1]
                 ], callback, queue);
@@ -329,7 +340,7 @@ function getPopData(dataH, callback, queue) {
       //SET NEW STATE for Every popped transaction
       newStateBatch = cleanData.map(function prepareStateBatch(elem) {
         transactionId = elem.transactionId;
-        dbTr = proxyDb;
+        dbTr = dbCluster.getTransactionDb(transactionId);
         return helper.hsetHashParallel(dbTr, queue, transactionId, ':state',
             'Delivered');
 
@@ -350,8 +361,13 @@ var peek = function(appPrefix, queue, maxElems, callback) {
       fullQueueIdL = config.dbKeyQueuePrefix + 'L:' + appPrefix + queue.id,
       restElems = 0;
 
-  peekAux(proxyDb);
-
+  dbCluster.getOwnDb(queueId, function(err, db) {
+    if (err) {
+      manageError(err, callback);
+    } else {
+      peekAux(db);
+    }
+  });
 
   function peekAux(db) {
     db.lrange(fullQueueIdH, 0, maxElems - 1, function onRangeH(errH, dataH) {
@@ -421,7 +437,7 @@ function retrieveData(queue, transactionList, callback) {
   'use strict';
   var ghostBusterBatch =
       transactionList.map(function prepareDataBatch(transaction) {
-        var dbTr = proxyDb;
+        var dbTr = dbCluster.getTransactionDb(transaction);
         return checkData(queue, dbTr, transaction);
       });
   async.parallel(ghostBusterBatch,
@@ -490,7 +506,7 @@ var getTransaction = function(extTransactionId, state, summary, callback) {
     manageError(err, callback);
   } else {
     //obtain transaction info
-    dbTr = proxyDb;
+    dbTr = dbCluster.getTransactionDb(extTransactionId);
     transactionId = config.dbKeyTransPrefix + extTransactionId;
     dbTr.hgetall(transactionId + ':state', function on_data(err, data) {
       if (err) {
@@ -560,7 +576,7 @@ var getTransactionMeta = function(extTransactionId, callback) {
   var err, dbTr, transactionId;
 
   //obtain transaction info
-  dbTr = proxyDb,
+  dbTr = dbCluster.getTransactionDb(extTransactionId);
   transactionId = config.dbKeyTransPrefix + extTransactionId;
   dbTr.hgetall(transactionId + ':meta', function onDataMeta(err, data) {
     if (err) {
@@ -578,10 +594,11 @@ var queueSize = function(appPrefix, queueId, callback) {
 
   var fullQueueIdH = config.dbKeyQueuePrefix + 'H:' + appPrefix +
       queueId, fullQueueIdL = config.dbKeyQueuePrefix + 'L:' + appPrefix +
-      queueId, db = proxyDb;
+      queueId, db = dbCluster.getDb(queueId);
 
   db.llen(fullQueueIdH, function onHLength(err, hLength) {
     db.llen(fullQueueIdL, function onLLength(err, lLength) {
+      dbCluster.free(db);
       if (callback) {
         callback(err, hLength + lLength);
       }
@@ -594,10 +611,11 @@ var getQueue = function(appPrefix, queueId, callback) {
   var maxMessages = config.agent.maxMessages;
   var fullQueueIdH = config.dbKeyQueuePrefix + 'H:' + appPrefix +
       queueId, fullQueueIdL = config.dbKeyQueuePrefix + 'L:' + appPrefix +
-      queueId, db = proxyDb;
+      queueId, db = dbCluster.getDb(queueId);
 
   db.lrange(fullQueueIdH, 0, maxMessages, function onHRange(err, hQueue) {
     db.lrange(fullQueueIdL, 0, maxMessages, function onLRange(err, lQueue) {
+      dbCluster.free(db);
       db.get(config.dbKeyQueuePrefix + appPrefix + queueId + ':lastPopDate',
           function(err, lastPopDate) {
             if (err) {
@@ -615,7 +633,7 @@ var getQueue = function(appPrefix, queueId, callback) {
 
 var deleteTrans = function(extTransactionId, cb) {
   'use strict';
-  var dbTr = proxyDb,
+  var dbTr = dbCluster.getTransactionDb(extTransactionId),
       meta = config.dbKeyTransPrefix +
       extTransactionId + ':meta', state = config.dbKeyTransPrefix +
       extTransactionId + ':state';
@@ -629,7 +647,7 @@ var deleteTrans = function(extTransactionId, cb) {
 
 var setPayload = function(extTransactionId, payload, cb) {
   'use strict';
-  var dbTr = proxyDb;
+  var dbTr = dbCluster.getTransactionDb(extTransactionId),
       meta = config.dbKeyTransPrefix +
       extTransactionId + ':meta';
 
@@ -653,7 +671,7 @@ var setPayload = function(extTransactionId, payload, cb) {
 
 var setUrlCallback = function(extTransactionId, urlCallback, cb) {
   'use strict';
-  var dbTr = proxyDb,
+  var dbTr = dbCluster.getTransactionDb(extTransactionId),
       meta = config.dbKeyTransPrefix +
       extTransactionId + ':meta';
 
@@ -679,7 +697,7 @@ var setUrlCallback = function(extTransactionId, urlCallback, cb) {
 //deprecated
 var setExpirationDate = function(extTransactionId, date, cb) {
   'use strict';
-  var dbTr = proxyDb,
+  var dbTr = dbCluster.getTransactionDb(extTransactionId),
       meta = config.dbKeyTransPrefix +
       extTransactionId + ':meta', state = config.dbKeyTransPrefix +
       extTransactionId + ':state';

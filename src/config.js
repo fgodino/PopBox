@@ -36,7 +36,7 @@ exports.logger = {};
 exports.logger.logLevel = 'debug';
 exports.logger.inspectDepth = 1;
 exports.logger.Console = {
-  level: 'warning', timestamp: true
+  level: 'info', timestamp: true
 };
 exports.logger.File = {
   level: 'debug', filename: dir_prefix +
@@ -58,7 +58,7 @@ exports.slave = false;
 exports.showDeployInformation = true;
 
 
-exports.proxyServer = {host : 'localhost', port : 8124};
+exports.persistenceRedis = {host : 'localhost', port : 7777};
 
 /**
  *

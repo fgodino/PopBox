@@ -1,14 +1,13 @@
 var crypto = require('crypto'),
-config = require('./configProxy.js');
+config = require('./config.js');
 
 
 var replicas = config.hashing.replicas;
 algorithm = config.hashing.algorithm;
 
-var continuum  = {}, keys = [], nodes = [];
+var continuum  = {}, keys = [];
 
 var addNode = function(node) {
-  nodes.push(node);
 
   for (var i = 0; i < replicas; i++) {
     var key = createHash(node + ':' + i);
@@ -19,9 +18,15 @@ var addNode = function(node) {
   keys.sort();
 };
 
+var getContinuum = function(){
+  return continuum;
+};
+
+var getKeys = function(){
+  return keys;
+}
 
 var removeNode = function(node) {
-  var nodeIndex =nodes.indexOf(node);
 
   for (var i = 0; i < replicas; i++) {
     var key = createHash(node + ':' + i);
@@ -72,3 +77,5 @@ var createHash = function(str) {
 exports.getNode = getNode;
 exports.addNode = addNode;
 exports.removeNode = removeNode;
+exports.getContinuum = getContinuum;
+exports.getKeys = getKeys;

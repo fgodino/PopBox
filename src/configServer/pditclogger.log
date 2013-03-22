@@ -1,0 +1,258 @@
+2013-03-21T09:43:38.766Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-21T09:47:30.592Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-21T09:47:50.937Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-21T10:14:25.397Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-21T10:15:40.670Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-21T10:17:52.824Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-21T10:17:52.825Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-21T10:17:52.827Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-21T10:17:52.827Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-21T10:17:52.828Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-21T10:17:52.828Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-21T10:19:43.377Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-21T10:19:43.378Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-21T10:19:43.380Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-21T10:19:43.380Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-21T10:20:23.707Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-21T10:20:23.707Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-21T10:20:23.710Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-21T10:20:23.710Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-21T10:20:23.711Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-21T10:20:23.711Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-21T10:24:24.685Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-21T10:24:24.686Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-21T10:24:24.688Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-21T10:24:24.688Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-21T10:24:24.689Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-21T10:24:24.689Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-21T10:25:31.686Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-21T10:25:31.687Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-21T10:25:31.689Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-21T10:25:31.689Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-21T10:25:31.690Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-21T10:25:31.690Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-21T10:50:37.721Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-21T10:50:37.722Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-21T10:50:37.725Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-21T10:50:37.725Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-21T10:50:37.725Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-21T10:50:37.725Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-21T10:51:24.514Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-21T10:51:24.515Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-21T10:51:24.517Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-21T10:51:24.517Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-21T10:51:24.518Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-21T10:51:24.518Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-21T10:51:56.162Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-21T10:51:56.163Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-21T10:51:56.165Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-21T10:51:56.165Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-21T10:51:56.166Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-21T10:51:56.166Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-21T10:56:45.390Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-21T10:56:45.391Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-21T10:56:45.393Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-21T10:56:45.393Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-21T10:56:45.394Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-21T10:56:45.394Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-21T10:57:01.695Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-21T10:57:01.695Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-21T10:57:01.698Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-21T10:57:01.698Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-21T10:57:01.698Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-21T10:57:01.699Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-21T11:51:50.217Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-21T11:51:50.217Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-21T11:51:50.220Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-21T11:51:50.220Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-21T11:51:50.221Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-21T11:51:50.221Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:09:40.194Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T08:10:11.771Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T08:10:11.772Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:10:11.774Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T08:10:11.774Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:10:11.775Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:10:11.775Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:10:27.370Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T08:10:27.371Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:10:27.373Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T08:10:27.373Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:10:27.374Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:10:27.374Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:13:55.640Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T08:13:55.640Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:13:55.643Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T08:13:55.643Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:13:55.644Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:13:55.644Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:15:32.431Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T08:15:32.432Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:15:32.435Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T08:15:32.435Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:15:32.435Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:15:32.435Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:16:31.163Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T08:16:31.163Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:16:31.166Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T08:16:31.166Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:16:31.167Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:16:31.167Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:33:22.324Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T08:33:22.325Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:33:22.327Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T08:33:22.327Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:33:22.328Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:33:22.328Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:34:40.456Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T08:34:40.457Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:34:40.459Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T08:34:40.459Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:34:40.460Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:34:40.460Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:34:56.940Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T08:34:56.941Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:34:56.943Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T08:34:56.943Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:34:56.944Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:34:56.944Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:35:30.105Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T08:35:30.106Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:35:30.109Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T08:35:30.109Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:35:30.109Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:35:30.109Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:36:54.122Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T08:36:54.123Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:36:54.125Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T08:36:54.125Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:36:54.126Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:36:54.126Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:37:42.238Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T08:37:42.239Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:37:42.241Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T08:37:42.241Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:37:42.242Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:37:42.242Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:38:28.059Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T08:38:28.059Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:38:28.062Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T08:38:28.062Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:38:28.062Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:38:28.063Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:39:06.823Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T08:39:06.824Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:39:06.826Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T08:39:06.826Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:39:06.827Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:39:06.827Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:41:48.449Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T08:41:48.450Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:41:48.452Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T08:41:48.452Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:41:48.453Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:41:48.453Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:45:37.718Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T08:45:37.718Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:45:37.721Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T08:45:37.721Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T08:45:37.721Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T08:45:37.721Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T09:23:30.364Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T09:23:30.365Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:23:30.367Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T09:23:30.367Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:28:12.277Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T09:28:12.277Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:28:12.280Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T09:28:12.280Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:28:31.882Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T09:28:31.883Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:28:31.885Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T09:28:31.885Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:28:31.886Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T09:28:31.886Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T09:32:36.741Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T09:32:36.742Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:32:36.744Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T09:32:36.744Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:32:36.745Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T09:32:36.745Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T09:33:33.512Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T09:33:33.513Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:33:33.515Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T09:33:33.515Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:33:33.516Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T09:33:33.516Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T09:33:45.080Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T09:33:45.080Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:33:45.082Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T09:33:45.083Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:33:45.083Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T09:33:45.083Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T09:34:45.131Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T09:34:45.131Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:34:45.134Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T09:34:45.134Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:34:45.134Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T09:34:45.134Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T09:34:57.289Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T09:34:57.290Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:34:57.292Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T09:34:57.292Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:34:57.293Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T09:34:57.293Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T09:35:30.022Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T09:35:30.023Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:35:30.025Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T09:35:30.025Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:35:30.026Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T09:35:30.026Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T09:35:44.581Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T09:35:44.582Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:35:44.584Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T09:35:44.584Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:35:44.585Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T09:35:44.585Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T09:36:18.978Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T09:36:18.979Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:36:18.981Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T09:36:18.981Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:36:18.982Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T09:36:18.982Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T09:58:48.999Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T09:58:49.000Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:58:49.002Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T09:58:49.002Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:58:49.003Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T09:58:49.003Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T09:59:00.942Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T09:59:00.943Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:59:00.945Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T09:59:00.945Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T09:59:00.946Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T09:59:00.946Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T10:01:52.792Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T10:01:52.793Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T10:01:52.795Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T10:01:52.795Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T10:01:52.796Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T10:01:52.796Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T10:15:49.616Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T10:15:49.616Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T10:15:49.619Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T10:15:49.619Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T10:15:49.619Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T10:15:49.619Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T10:16:56.338Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T10:16:56.339Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T10:16:56.341Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T10:16:56.341Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T10:16:56.342Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T10:16:56.342Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T10:29:12.588Z - info: [replicationHelper] Connected to REDIS  'localhost:6379'
+2013-03-22T10:29:12.588Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T10:29:12.591Z - info: [replicationHelper] Connected to REDIS  'localhost:8888'
+2013-03-22T10:29:12.591Z - debug: [replicationHelper] select [ 0 ] 
+2013-03-22T10:29:12.591Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 
+2013-03-22T10:29:12.591Z - debug: [replicationHelper] keys [ '*', [Function: onGet] ] 

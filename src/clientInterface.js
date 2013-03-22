@@ -1,5 +1,4 @@
-var net = require('net'),
-    config = require('./configProxy.js');
+
 
 var path = require('path');
 var log = require('PDITCLogger');
