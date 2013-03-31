@@ -69,10 +69,9 @@ var exists = function(db, id, callback) {
   });
 };
 
-var pushParallel = function(db, queue, priority, transaction_id) {
+var pushParallel = function(db, fullQueueId, transaction_id) {
   'use strict';
   return function asyncPushParallel(callback) {
-    var fullQueueId = config.dbKeyQueuePrefix + priority + queue.id;
     db.rpush(fullQueueId, transaction_id, function onLpushed(err) {
       if (err) {
         //error pushing
@@ -85,10 +84,10 @@ var pushParallel = function(db, queue, priority, transaction_id) {
   };
 };
 
-var hsetHashParallel = function(dbTr, queue, transactionId, sufix, datastr) {
+var hsetHashParallel = function(dbTr, queue, transactionId, datastr) {
   'use strict';
   return function asyncHsetHashParallel(callback) {
-    dbTr.hmset(transactionId + sufix, queue.id, datastr, function(err) {
+    dbTr.hmset(transactionId, queue.id, datastr, function(err) {
       if (err) {
         //error pushing
         logger.warning(err);

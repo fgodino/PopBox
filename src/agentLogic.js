@@ -568,3 +568,4 @@ exports.putTransMeta = putTransMeta;
 exports.postTransDelayed = postTransDelayed;
 
 require('./hookLogger.js').init(exports, logger);
+require('./configurationClient.js').init(exports);

@@ -186,6 +186,7 @@ var calculateDistribution = function(cb){
     if (err){
       logger.error('getAllKeys()', err);
     }
+
     if (cb && typeof(cb) === 'function') {
       cb(err, res);
     }
@@ -193,13 +194,14 @@ var calculateDistribution = function(cb){
 
   function _getAllKeysParrallel (item){
     return function _getAllKeys (callback){
+      console.log('empieza');
       getAllKeys(item, callback);
     }
   }
 };
 
 var getAllKeys = function(node, cb){
-
+  console.log('sigue');
   node.redisClient.keys("*", function onGet(err, res){
     if (err){
       logger.error('getKeys()', err);
@@ -253,9 +255,7 @@ var generateNodes = function(){
 
 //Bootstrapping clients and redistributing
 
-var bootstrapMigration = function(){
-  var emitter = new EventEmitter();
-
+var bootstrapMigration = function(callback){
   calculateDistribution(function(err, items){
     if (!err){
       for (nodeFrom in items){
@@ -271,27 +271,28 @@ var bootstrapMigration = function(){
             redistribution[redNode].push(key);
           }
         }
-        if(Object.keys(redistribution).length === 0) emitter.emit('success');
-        for(nodeDest in redistribution){
-          migrateKeys(nodeFrom, nodeDest, redistribution[nodeDest], function(err){
-            if (err){
-              emitter.emit('error', err);
-              logger.error('migrateKeys()', err);
-            }
-            else {
-
-            }
-          });
+        if(Object.keys(redistribution).length === 0) {
+          callback(null);
+        } else {
+          for(nodeDest in redistribution){
+            migrateKeys(nodeFrom, nodeDest, redistribution[nodeDest], function(err){
+              if (err){
+                callback(err)
+                logger.error('migrateKeys()', err);
+              }
+              else {
+                callback(null);
+              }
+            });
+          }
         }
       }
     } else {
-       emitter.emit('error', err);
+       callback(err);
     }
-
   });
 
-  return emitter;
-}
+};
 
 var getNodes = function(){
   var redisHostPort = {};

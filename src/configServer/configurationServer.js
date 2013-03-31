@@ -4,13 +4,6 @@ var redis = require('redis');
 var config = require('./config.js');
 var rc = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
 
-repHelper.generateNodes();
-var bootstrap = repHelper.bootstrapMigration();
-
-bootstrap.once('error', function(err){
-    throw new Error(err);
-});
-
 var count = 0;
 var agents = {};
 
@@ -61,27 +54,6 @@ var migrator = function(cb){
     };
 };
 
-
-
-bootstrap.once('success', function(){
-    uploadRing();
-    rc.set('MIGRATING', 0);
-    var subscriber = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
-    subscriber.subscribe("agent:new");
-    subscriber.on("message", function(channel, message){
-        if(!agents.hasOwnProperty(message)){
-          count++;
-          agents[message] = false;
-        }
-    });
-
-    setTimeout(function(){
-      migrator(function(cb){
-        repHelper.addNode('redis3', 'localhost', 9999, cb);
-      });
-    }, 20000);
-});
-
 var uploadRing = function(cb){
   var continuum = hashHelper.getContinuum();
   var keys = hashHelper.getKeys();
@@ -95,6 +67,31 @@ var uploadRing = function(cb){
 
   multi.exec(cb);
 };
+
+repHelper.generateNodes();
+repHelper.bootstrapMigration(function(err){
+  if(err){
+    throw new Error(err);
+  }
+  else {
+    uploadRing();
+    rc.set('MIGRATING', 0);
+    var subscriber = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
+    subscriber.subscribe("agent:new");
+    subscriber.on("message", function(channel, message){
+        if(!agents.hasOwnProperty(message)){
+          count++;
+          agents[message] = false;
+        }
+    });
+
+    /*setTimeout(function(){
+      migrator(function(cb){
+        repHelper.addNode('redis3', 'localhost', 9999, cb);
+      });
+    }, 20000);*/
+  }
+});
 
 
 exports.migrator = migrator;
