@@ -193,6 +193,11 @@ exports.cluster = {};
 exports.cluster.numcpus = 0;
 
 
+exports.pool = {};
+
+exports.pool.maxElems = 100;
+
+
 /**
  *
  * @type {Number} max value for expirationDate

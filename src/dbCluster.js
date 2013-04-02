@@ -38,8 +38,9 @@ var redisNodes = {};
 
 var getDb = function(hash) {
   'use strict';
-  logger.info('getDb()', node);
+  logger.debug('getDb()', node);
   var node = hashing.getNode(hash);
+
   return redisNodes[node].pool.get();
 };
 
@@ -68,11 +69,17 @@ var downloadConfig = function (){
       var info = JSON.parse(serializedNodes[node]);
       deserializedNodes[node] = info;
     }
-
+    console.log(Object.keys(deserializedNodes));
     for (var node in deserializedNodes) {
+      console.log(node);
       var port = deserializedNodes[node].port || redisModule.DEFAULT_PORT;
       var host = deserializedNodes[node].host;
-      deserializedNodes[node].pool =  poolMod.Pool(host, port);
+
+
+      var Pool = poolMod.Pool;
+
+      redisNodes[node] = {host : host, port : port};
+      redisNodes[node].pool =  new Pool(host, port);
 
       logger.info('Connected to REDIS ', host + ':' + port);
     }

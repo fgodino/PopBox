@@ -85,15 +85,14 @@ var redistributeAdd = function(newNode, cb){
       for (var node in items){
         if (node != newNode){
           var keys = items[node];
-          for(var i = 0; i < keys.length; i++){
-            var key = keys[i];
-            if (hashing.getNode(key) != newNode){
-              keys.splice(i, 1);
-              i--;
+          var migratingKeys = [];
+          for(id in keys){
+            if (hashing.getNode(id) === newNode){
+              migratingKeys.push(keys[id]);
             }
           }
-          if(keys.length > 0){
-            redistributionFunctions.push(migrateAll(node, newNode, keys));
+          if(migratingKeys.length > 0){
+            redistributionFunctions.push(migrateAll(node, newNode, migratingKeys));
           }
         }
       }
@@ -130,12 +129,12 @@ var redistributeRemove = function (nodeName, cb) {
     if (err){
       logger.error('getAllKeys', err);
     } else {
-      for (var i = 0; i < keys.length; i++){
-        var nodeTo = hashing.getNode(keys[i]);
+      for (var id in keys){
+        var nodeTo = hashing.getNode(id);
         if(!redistributionObj.hasOwnProperty(nodeTo)){
           redistributionObj[nodeTo] = [];
         }
-        redistributionObj[nodeTo].push(keys[i]);
+        redistributionObj[nodeTo].push(keys[id]);
       }
       for (var nodeTo in redistributionObj){
         var keysToMigrate = redistributionObj[nodeTo];
@@ -194,7 +193,6 @@ var calculateDistribution = function(cb){
 
   function _getAllKeysParrallel (item){
     return function _getAllKeys (callback){
-      console.log('empieza');
       getAllKeys(item, callback);
     }
   }
@@ -202,15 +200,35 @@ var calculateDistribution = function(cb){
 
 var getAllKeys = function(node, cb){
   console.log('sigue');
-  node.redisClient.keys("*", function onGet(err, res){
+  node.redisClient.keys("PB:[TQ]|*", function onGet(err, res){
     if (err){
       logger.error('getKeys()', err);
     }
     if (cb && typeof(cb) === 'function') {
-      cb(err, res);
+      var keyAndId = {};
+      for(var i = 0; i < res.length; i++){
+        getKeyId(res[i]) = keyAndId[res[i]];
+      }
+      cb(err, keyAndId);
     }
   });
 };
+
+var getKeyId = function(key){
+
+
+
+  var queue = /PB:Q/, trans = /PB:T/;
+
+  if(queue.test(key)){
+
+  }
+  else if (trans.test(key)){
+    var splitted = keys.split(/\||:/);
+    var id = splitted[2];
+    return id;
+  }
+}
 
 function createClient(port, host, cb){
   var cli = redisModule.createClient(port, host);
@@ -261,14 +279,13 @@ var bootstrapMigration = function(callback){
       for (nodeFrom in items){
         var redistribution = {};
         var keys = items[nodeFrom];
-        for(var i = 0; i < keys.length; i++){
-          var key = keys[i];
-          var redNode = hashing.getNode(key);
+        for(var id in keys){
+          var redNode = hashing.getNode(id);
           if (redNode != nodeFrom){
             if (!redistribution.hasOwnProperty(redNode)) {
               redistribution[redNode] = [];
             }
-            redistribution[redNode].push(key);
+            redistribution[redNode].push(keys[id]);
           }
         }
         if(Object.keys(redistribution).length === 0) {

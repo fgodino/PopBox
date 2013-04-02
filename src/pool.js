@@ -22,6 +22,7 @@
 //Pool modeled via Connection array
 var config = require('./config.js');
 var net = require('net');
+var redis = require('redis');
 
 
 var path = require('path');

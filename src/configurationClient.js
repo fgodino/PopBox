@@ -29,6 +29,8 @@ exports.init = function(exp){
   });
 };
 
+
+
 var publisher = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
 var subscriber = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
 
