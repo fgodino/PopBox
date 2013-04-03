@@ -567,5 +567,17 @@ exports.transMeta = transMeta;
 exports.putTransMeta = putTransMeta;
 exports.postTransDelayed = postTransDelayed;
 
-require('./hookLogger.js').init(exports, logger);
+var hooked = {};
+
+hooked.getQueue = getQueue;
+hooked.popQueue = popQueue;
+hooked.peekQueue = peekQueue;
+hooked.transState = transState;
+hooked.deleteTrans = deleteTrans;
+hooked.transMeta = transMeta;
+hooked.putTransMeta = putTransMeta;
+hooked.postTransDelayed = postTransDelayed;
+
+
+require('./hookLogger.js').init(hooked, logger);
 require('./configurationClient.js').init(exports);

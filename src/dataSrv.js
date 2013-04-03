@@ -47,7 +47,7 @@ var pushTransaction = function(appPrefix, provision, callback) {
       transactionId = config.dbKeyTransPrefix + extTransactionId,
   //setting up the bach proceses for async module.
       processBatch = [],
-      dbTr = dbCluster.getDb(transactionId),
+      dbTr = dbCluster.getDb(extTransactionId),
       i,
       queue;
 
@@ -137,7 +137,7 @@ var pushTransaction = function(appPrefix, provision, callback) {
 var updateTransMeta = function(extTransactionId, provision, callback) {
   'use strict';
   var transactionId = config.dbKeyTransPrefix +
-      extTransactionId, dbTr = dbCluster.getDb(transactionId);
+      extTransactionId, dbTr = dbCluster.getDb(extTransactionId);
 
   // curry for async (may be refactored)
 
@@ -265,14 +265,8 @@ var blockingPop = function(appPrefix, queue,
   //Set the last PopAction over the queue
   var popDate = Math.round(Date.now() / 1000);
 
-  dbCluster.getOwnDb(queueId, function(err, db) {
-    if (err) {
-      manageError(err, callback);
-    }
-    else {
-      blockingPopAux(db);
-    }
-  });
+  var db = dbCluster.getDb(queueId);
+  blockingPopAux(db);
 
   function blockingPopAux(db) {
     db.set(config.dbKeyQueuePrefix + appPrefix + queueId + ':lastPopDate',
@@ -300,6 +294,7 @@ var blockingPop = function(appPrefix, queue,
               if (maxElems > 1) {
                 popNotification(db, appPrefix, queue, maxElems - 1,
                     function onPop(err, clean_data) {
+                      console.log(clean_data);
                       dbCluster.free(db); //add free() when pool
                       if (err) {
                         if (callback) {
@@ -327,8 +322,7 @@ var blockingPop = function(appPrefix, queue,
 
 function getPopData(dataH, callback, queue) {
   'use strict';
-  var newStateBatch = [
-  ], transactionId = null, dbTr = null, cleanData = null;
+  var newStateBatch = [], transactionId = null, dbTr = null, cleanData = null;
   retrieveData(queue, dataH, function onData(err, payloadWithNulls) {
     if (err) {
       manageError(err, callback);
@@ -337,6 +331,7 @@ function getPopData(dataH, callback, queue) {
       cleanData = payloadWithNulls.filter(function notNull(elem) {
         return elem !== null;
       });
+      console.log(cleanData);
       //SET NEW STATE for Every popped transaction
       newStateBatch = cleanData.map(function prepareStateBatch(elem) {
         transactionId = elem.transactionId;
@@ -361,13 +356,8 @@ var peek = function(appPrefix, queue, maxElems, callback) {
       fullQueueIdL = config.dbKeyQueuePrefix + 'L:' + appPrefix + queue.id,
       restElems = 0;
 
-  dbCluster.getOwnDb(queueId, function(err, db) {
-    if (err) {
-      manageError(err, callback);
-    } else {
-      peekAux(db);
-    }
-  });
+    var db = dbCluster.getDb(queueId);
+    peekAux(db);
 
   function peekAux(db) {
     db.lrange(fullQueueIdH, 0, maxElems - 1, function onRangeH(errH, dataH) {
@@ -437,8 +427,9 @@ function retrieveData(queue, transactionList, callback) {
   'use strict';
   var ghostBusterBatch =
       transactionList.map(function prepareDataBatch(transaction) {
-        var dbTr = dbCluster.getDb(transaction);
-        return checkData(queue, dbTr, transaction);
+        var extTransactionId = transaction.split('|')[1],
+        dbTr = dbCluster.getDb(extTransactionId);
+        return checkData(queue, dbTr, transaction, extTransactionId);
       });
   async.parallel(ghostBusterBatch,
       function retrieveDataAsyncEnd(err, foundMetadata) {
@@ -448,7 +439,7 @@ function retrieveData(queue, transactionList, callback) {
       });
 }
 
-function checkData(queue, dbTr, transactionId) {
+function checkData(queue, dbTr, transactionId, extTransactionId) {
   'use strict';
   return function(callback) {
     var ev = null, extTransactionId = transactionId.split('|')[1];

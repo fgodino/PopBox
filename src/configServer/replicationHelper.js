@@ -172,7 +172,20 @@ var migrateKeys = function(from, to, keys, cb) {
   for (var i = 0; i < keys.length; i++){
     multi.migrate(clientToHost, clientToPort, keys[i], config.selectedDB, config.migrationTimeout);
   }
-  multi.exec(cb);
+  multi.exec(function(err, res){
+    if(err){
+      throw new Error(err);
+    }
+    else {
+      for (var i = 0; i < res.length; i++){
+        if (res[i] != 'OK'){
+          err = 'ERR: Can not migrate from ' + from + ' to ' + to;
+          break;
+        }
+      }
+    }
+    cb(err,res);
+  });
 };
 
 var calculateDistribution = function(cb){
@@ -207,7 +220,7 @@ var getAllKeys = function(node, cb){
     if (cb && typeof(cb) === 'function') {
       var keyAndId = {};
       for(var i = 0; i < res.length; i++){
-        getKeyId(res[i]) = keyAndId[res[i]];
+        keyAndId[getKeyId(res[i])] = res[i];
       }
       cb(err, keyAndId);
     }
@@ -216,15 +229,15 @@ var getAllKeys = function(node, cb){
 
 var getKeyId = function(key){
 
-
-
   var queue = /PB:Q/, trans = /PB:T/;
 
   if(queue.test(key)){
-
+    var splitted = key.split(':');
+    var id = splitted[3];
+    return id;
   }
   else if (trans.test(key)){
-    var splitted = keys.split(/\||:/);
+    var splitted = key.split(/\||:/);
     var id = splitted[2];
     return id;
   }

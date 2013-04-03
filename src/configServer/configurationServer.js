@@ -61,6 +61,9 @@ var uploadRing = function(cb){
 
   var multi = rc.multi();
 
+  multi.del('CONTINUUM');
+  multi.del('KEYS');
+  multi.del('NODES');
   multi.hmset('CONTINUUM', continuum);
   multi.rpush('KEYS', keys);
   multi.hmset('NODES', nodes);
@@ -71,7 +74,7 @@ var uploadRing = function(cb){
 repHelper.generateNodes();
 repHelper.bootstrapMigration(function(err){
   if(err){
-    throw new Error(err);
+    console.log(err);
   }
   else {
     uploadRing();

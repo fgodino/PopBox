@@ -22,16 +22,27 @@ exports.init = function(exp){
     passName: true,
     pre: function() {
       numberActive++;
+      console.log('antes');
     },
     post: function() {
       numberActive--;
+      console.log('despues');
     }
   });
 };
-
-
 
 var publisher = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
 var subscriber = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
 
 publisher.publish('agent:new', agentId);
+subscriber.subscribe('migration:new');
+
+subscriber.on('message', function(channel, message){
+  switch(message){
+    case ''
+  }
+});
+
+var initMigrationProcess = function(){
+
+}
