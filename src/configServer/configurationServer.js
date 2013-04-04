@@ -9,7 +9,7 @@ var agents = {};
 
 var migrator = function(cb){
 
-    rc.set('MIGRATING', 1);
+    rc.set('MIGRATING', true);
 
     var subscriber = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
     var publisher = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
@@ -34,6 +34,7 @@ var migrator = function(cb){
 
     function migrated(){
       cb(function(err){
+        console.log('se ha migrado');
         if(!err){
           count = Object.keys(agents).length;
           for (var agent in agents){
@@ -41,7 +42,7 @@ var migrator = function(cb){
           }
           uploadRing(function(err){
             if(!err){
-              rc.set('MIGRATING', 0);
+              rc.set('MIGRATING', false);
               publisher.publish("migration:new", "OK");
             } else {
               throw new Error(err);
@@ -78,23 +79,31 @@ repHelper.bootstrapMigration(function(err){
   }
   else {
     uploadRing();
-    rc.set('MIGRATING', 0);
+    rc.set('MIGRATING', false);
     var subscriber = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
     subscriber.subscribe("agent:new");
     subscriber.on("message", function(channel, message){
+        console.log('hola');
         if(!agents.hasOwnProperty(message)){
           count++;
           agents[message] = false;
         }
     });
+  }
+});
 
-    /*setTimeout(function(){
+setTimeout(function(){
       migrator(function(cb){
         repHelper.addNode('redis3', 'localhost', 9999, cb);
       });
-    }, 20000);*/
-  }
-});
+    }, 10000);
+
+setTimeout(function(){
+      migrator(function(cb){
+        repHelper.removeNode('redis3', cb);
+      });
+    }, 20000);
+
 
 
 exports.migrator = migrator;

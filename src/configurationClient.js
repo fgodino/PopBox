@@ -3,11 +3,30 @@ var config = require('./config.js');
 var redis = require('redis');
 var uuid = require('node-uuid');
 var hooker = require('hooker');
+var dbCluster = require('./dbCluster');
 
 var agentId = uuid.v1();
 
-var migrating = false;
+var migrating = true;
 var numberActive = 0;
+
+var migChecker = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
+migChecker.get('MIGRATING', function(err, res){
+  if (err){
+    throw new Error(err);
+  } else {
+    migrating = (res === 'true'); //deserialize response, boolean
+    if (migrating){
+      initMigrationProcess();
+    } else {
+      dbCluster.downloadConfig(function onDownloaded(err) {
+        if(err){
+          throw new Error(err);
+        }
+      });
+    }
+  }
+});
 
 exports.checkMigrating = function(req, res, next){
     if (migrating){
@@ -38,11 +57,31 @@ publisher.publish('agent:new', agentId);
 subscriber.subscribe('migration:new');
 
 subscriber.on('message', function(channel, message){
-  switch(message){
-    case ''
+  if (message === 'NEW') { //Ignore it otherwise
+      if(!migrating) initMigrationProcess();
+      console.log('new');
   }
 });
 
-var initMigrationProcess = function(){
 
-}
+var initMigrationProcess = function(){
+  migrating = true;
+  var checkReady = setInterval(function checkAgain(argument) {
+    if (numberActive === 0){
+      publisher.publish('agent:ok', agentId);
+      clearTimeout(checkReady);
+    }
+  },2000);
+  subscriber.on('message', function onMessage(channel, message){
+    if (message === 'OK') { //Ignore it otherwise
+      subscriber.removeListener('message', onMessage);
+      dbCluster.downloadConfig(function onDownloaded(err) {
+        if(err){
+          throw new Error(err);
+        } else {
+          migrating = false;
+        }
+      });
+    }
+  });
+};

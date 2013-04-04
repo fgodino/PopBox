@@ -49,7 +49,7 @@ var free = function (db) {
   db.pool.free(db);
 };
 
-var downloadConfig = function (){
+var downloadConfig = function (callback){
   var multi = rc.multi();
 
   multi.hgetall('NODES');
@@ -57,6 +57,10 @@ var downloadConfig = function (){
   multi.lrange('KEYS', 0, -1);
 
   multi.exec(function(err, res){
+    if(err){
+      callback(err);
+      return;
+    }
     var serializedNodes = res[0];
     var continuum = res[1];
     var keys = res[2];
@@ -83,11 +87,9 @@ var downloadConfig = function (){
 
       logger.info('Connected to REDIS ', host + ':' + port);
     }
+    callback(err);
   });
 };
-
-
-downloadConfig();
 
 /**
  *
@@ -101,5 +103,7 @@ exports.getDb = getDb;
  * @param {RedisClient} db Redis DB to be closed.
  */
 exports.free = free;
+
+exports.downloadConfig = downloadConfig;
 
 require('./hookLogger.js').init(exports, logger);
