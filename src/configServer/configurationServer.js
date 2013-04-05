@@ -49,6 +49,7 @@ var migrator = function(cb){
             }
           });
         } else {
+          rc.set('MIGRATING', false);
           throw new Error(err);
         }
       });
@@ -92,19 +93,57 @@ repHelper.bootstrapMigration(function(err){
   }
 });
 
-setTimeout(function(){
-      migrator(function(cb){
-        repHelper.addNode('redis3', 'localhost', 9999, cb);
-      });
-    }, 10000);
+var addNode = function(req, res){
+  var host = req.body.host || 'localhost';
+  var port = req.body.port;
+  var name = req.body.name;
 
-setTimeout(function(){
-      migrator(function(cb){
-        repHelper.removeNode('redis3', cb);
-      });
-    }, 20000);
+  console.log(host, port, name);
 
+  if (!req.headers['content-type'] || req.headers['content-type'] !== 'application/json') {
+    res.send({errors: ['Invalid content-type']}, 400);
+    return;
+  }
+  if (!host || !port || !name){
+    res.send({errors: ['missing fields']}, 400);
+    return;
+  }
+  migrator(function(cb){
+    repHelper.addNode(name, host, port, function(err){
+      if(err){
+        res.send({errors: [err]}, 400);
+      } else {
+        res.send({ok: true}, 200);
+        cb(err);
+      }
+    });
+  });
+};
 
+var delNode = function(req, res){
+  var name = req.body.name;
 
-exports.migrator = migrator;
+  if (!req.headers['content-type'] || req.headers['content-type'] !== 'application/json') {
+    res.send({errors: ['Invalid content-type']}, 400);
+    return;
+  }
+  if (!name){
+    res.send({errors: ['missing fields']}, 400);
+    return;
+  }
+  migrator(function(cb){
+    repHelper.removeNode(name, function(err){
+      if(err){
+        res.send({errors: [err]}, 400);
+      } else {
+        res.send({ok: true}, 200);
+        cb(err);
+      }
+    });
+  });
+};
+
+exports.delNode = delNode;
+exports.addNode = addNode;
+
 

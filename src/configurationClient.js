@@ -36,16 +36,22 @@ exports.checkMigrating = function(req, res, next){
     }
 };
 
+
+var incActive = function() {
+  numberActive++;
+  console.log('antes: ' + numberActive);
+};
+
+var decActive = function(){
+  numberActive--;
+  console.log('despues ' + numberActive);
+};
+
 exports.init = function(exp){
   hooker.hook(exp, {
     passName: true,
     pre: function() {
-      numberActive++;
-      console.log('antes');
-    },
-    post: function() {
-      numberActive--;
-      console.log('despues');
+      incActive();
     }
   });
 };
@@ -85,3 +91,5 @@ var initMigrationProcess = function(){
     }
   });
 };
+
+exports.decActive = decActive;

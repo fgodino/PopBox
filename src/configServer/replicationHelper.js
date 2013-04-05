@@ -41,6 +41,7 @@ var addNode = function(name, host, port, cb){
   logger.info('Adding new node ', name + ' - ' + host + ':' + port);
   if(redisNodes.hasOwnProperty(name)){
     logger.warning('addNode()', 'Node ' + name + ' already exists, wont be added');
+    cb('addNode()', 'Node ' + name + ' already exists, wont be added');
   }
   else {
     var redisClient = createClient(port, host, function(err){
@@ -64,6 +65,9 @@ var removeNode = function(name, cb) {
   logger.info('Removing node', name);
   if(!redisNodes.hasOwnProperty(name)){
     logger.warning('removeNode()', 'Node ' + name + ' does not exist, wont be removed');
+    if (cb && typeof(cb) === 'function') {
+      cb('removeNode()', 'Node ' + name + ' does not exist, wont be removed');
+    }
   } else {
     hashing.removeNode(name);
     redistributeRemove(name, function(err){

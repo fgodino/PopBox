@@ -24,6 +24,7 @@ var validate = require('./validate');
 var emitter = require('./emitterModule').getEmitter();
 var config = require('./config.js');
 var crypto = require('crypto');
+var configCli = require('./configurationClient.js');
 
 var path = require('path');
 var log = require('PDITCLogger');
@@ -48,6 +49,9 @@ function postTrans(req, res) {
   if (errors.length === 0) {
     dataSrv.pushTransaction(prefix, req.body,
         function onPushedTrans(err, trans_id) {
+
+      configCli.decActive();
+
       if (err) {
         ev = {
           'transaction': trans_id,
@@ -58,6 +62,7 @@ function postTrans(req, res) {
         };
         emitter.emit('ACTION', ev);
         res.send({errors: [err]}, 500);
+
         logger.info('postTrans', [
           {error: [err]},
           500 ,
@@ -72,6 +77,7 @@ function postTrans(req, res) {
         };
         emitter.emit('ACTION', ev);
         res.send({ok: true, data: trans_id});
+
         logger.info('postTrans', [
           {id: trans_id} ,
           req.info
@@ -80,6 +86,7 @@ function postTrans(req, res) {
     });
   } else {
     res.send({errors: errors}, 400);
+
     logger.info('postTrans', [
       {errors: errors},
       400 ,
@@ -101,6 +108,7 @@ function postTransDelayed(req, res) {
       req.info
     ]);
     res.send({'ok': true, 'data': 'unknown-delayed'});
+
   }
   else {
     postTrans(req, res);
@@ -116,6 +124,7 @@ function putTransMeta(req, res) {
     errors.push('invalid content-type header');
     logger.info('putTransMeta', [req.info, {errors: errors}, 400]);
     res.send({errors: errors}, 400);
+
   } else {
     filteredReq.payload = req.body.payload;
     filteredReq.callback = req.body.callback;
@@ -132,6 +141,7 @@ function putTransMeta(req, res) {
       ]);
       res.send({ok: true, data: 'empty data'});
 
+
     } else {
       if (id === null) {
         errors.push('missing id');
@@ -145,9 +155,13 @@ function putTransMeta(req, res) {
       if (errors.length > 0) {
         logger.info('putTransMeta', [req.info, {errors: errors}, 400]);
         res.send({errors: errors}, 400);
+
       }
       else {
         dataSrv.updateTransMeta(id, req.body, function(e, data) {
+
+          configCli.decActive();
+
           if (e) {
             logger.info('putTransMeta', [
               {errors: [String(e)]},
@@ -155,12 +169,14 @@ function putTransMeta(req, res) {
               req.info
             ]);
             res.send({errors: [String(e)]}, 400);
+
           } else {
             logger.info('putTransMeta', [
               {ok: true, data: data},
               req.info
             ]);
             res.send({ok: true, data: data});
+
           }
         });
       }
@@ -198,6 +214,7 @@ function postQueue(req, res) {
           {errors: [err]},
           500
         ]);
+
       } else {
         ev = {
           'queue': queue,
@@ -211,6 +228,7 @@ function postQueue(req, res) {
           req.info
         ]);
         res.send({ok: true});
+
       }
     });
   } else {
@@ -220,6 +238,7 @@ function postQueue(req, res) {
       req.info
     ]);
     res.send({errors: errors}, 400);
+
   }
 }
 
@@ -235,6 +254,9 @@ function transState(req, res) {
   }
   if (id) {
     dataSrv.getTransaction(id, state, summary, function(e, data) {
+
+      configCli.decActive();
+
       if (e) {
         logger.info('transState', [
           {errors: [e]},
@@ -248,6 +270,7 @@ function transState(req, res) {
           req.info
         ]);
         res.send({ok: true, data: data});
+
       }
     });
   } else {
@@ -257,6 +280,7 @@ function transState(req, res) {
       req.info
     ]);
     res.send({errors: ['missing id']}, 400);
+
   }
 }
 
@@ -266,6 +290,9 @@ function deleteTrans(req, res) {
 
   if (id) {
     dataSrv.deleteTrans(id, function(e) {
+
+      configCli.decActive();
+
       if (e) {
         logger.info('deleteTrans', [
           {errors: [e]},
@@ -273,12 +300,14 @@ function deleteTrans(req, res) {
           req.info
         ]);
         res.send({errors: [e]}, 400);
+
       } else {
         logger.info('deleteTrans', [
           {ok: true},
           req.info
         ]);
         res.send({ok: true});
+
       }
     });
   } else {
@@ -287,6 +316,7 @@ function deleteTrans(req, res) {
       400
     ], req.info);
     res.send({errors: ['missing id']}, 400);
+
   }
 }
 
@@ -299,9 +329,11 @@ function queueSize(req, res) {
     if (err) {
       logger.info('onQueueSize', [String(err), 500, req.info]);
       res.send({errors: [String(err)]}, 500);
+
     } else {
       logger.info('onQueueSize', [String(length), req.info]);
       res.send({ok: true, data: String(length)});
+
     }
   });
 }
@@ -314,9 +346,13 @@ function getQueue(req, res) {
   req.template = 'queues.jade';
 
   dataSrv.getQueue(prefix, queueId, function onGetQueue(err, hQ, lQ, lastPop) {
+
+    configCli.decActive();
+
     if (err) {
       logger.info('onGetQueue', [String(err), 500, req.info]);
       res.send({errors: [String(err)]}, 500);
+
     } else {
       var mapTrans = function(v) {
         var id = v.split('|')[1];
@@ -334,6 +370,7 @@ function getQueue(req, res) {
       ]);
       res.send({ok: true, host: req.headers.host, lastPop: lastPop,
         size: hQ.length + lQ.length, high: hQ, low: lQ });
+
     }
   });
 }
@@ -365,6 +402,9 @@ function popQueue(req, res) {
 
   dataSrv.blockingPop(appPrefix, {id: queueId}, maxMsgs,
       tOut, function onBlockingPop(err, notifList) {
+
+    configCli.decActive();
+
     var messageList = [];
     var transactionIdList = [];
     var ev = {};
@@ -381,6 +421,7 @@ function popQueue(req, res) {
       emitter.emit('ACTION', ev);
       logger.info('popQueue', [String(err), 500, req.info]);
       res.send({errors: [String(err)]}, 500);
+
     } else {
       if (notifList) {
         messageList = notifList.map(function(notif) {
@@ -403,6 +444,7 @@ function popQueue(req, res) {
         req.info
       ]);
       res.send({ok: true, data: messageList, transactions: transactionIdList});
+
     }
   });
 }
@@ -420,6 +462,9 @@ function peekQueue(req, res) {
 
   dataSrv.peek(appPrefix, {id: queueId}, maxMsgs,
       function onPeek(err, notifList) {
+
+    configCli.decActive();
+
     var messageList = [];
     var ev = {};
     //stablish the timeout depending on blocking time
@@ -427,6 +472,7 @@ function peekQueue(req, res) {
     if (err) {
       logger.info('peekQueue', [String(err), 500, req.info]);
       res.send({errors: [String(err)]}, 500);
+
 
     } else {
 
@@ -440,6 +486,7 @@ function peekQueue(req, res) {
         req.info
       ]);
       res.send({ok: true, data: messageList});
+
     }
   });
 }
@@ -466,6 +513,7 @@ function checkPerm(req, res, cb) {
       res.send('ERROR:' + err, {
         'Content-Type': 'text/plain',
         'WWW-Authenticate': 'Basic realm="PopBox"' }, 500);
+
     }
 
     else if (value) {
@@ -478,12 +526,14 @@ function checkPerm(req, res, cb) {
         res.send('Unauthorized ' + username, {
           'Content-Type': 'text/plain',
           'WWW-Authenticate': 'Basic realm="PopBox"' }, 401);
+
       }
     }
     else {
       res.send('ERROR: Secure Queue does not exist', {
         'Content-Type': 'text/plain',
         'WWW-Authenticate': 'Basic realm="PopBox"' }, 500);
+
     }
   });
 
@@ -503,24 +553,35 @@ function transMeta(req, res) {
     queues = 'All';
   }
   if (id === null) {
+
+    configCli.decActive();
+
     logger.info('transMeta', [
       {errors: ['missing id']},
       400,
       req.info
     ]);
     res.send({errors: ['missing id']}, 400);
+
   } else {
     dataSrv.getTransactionMeta(id, function(errM, dataM) {
       if (errM) {
+
+        configCli.decActive();
+
         logger.info('transMeta', [
           {errors: [errM]},
           400,
           req.info
         ]);
         res.send({errors: [errM]}, 400);
+
       } else {
         if (queues !== null) {
           dataSrv.getTransaction(id, queues, summary, function(errQ, dataQ) {
+
+            configCli.decActive();
+
             if (errQ) {
               logger.info('transMeta', [
                 {errors: [errQ]},
@@ -528,6 +589,7 @@ function transMeta(req, res) {
                 req.info
               ]);
               res.send({errors: [errQ]}, 400);
+
             } else {
               dataM.queues = dataQ;
               if (! summary) {
@@ -541,6 +603,7 @@ function transMeta(req, res) {
               //res.send({ok:true, data:dataM});
               logger.info('transMeta', [dataM, req.info]);
               res.send(dataM);
+
             }
           });
         }
@@ -548,6 +611,9 @@ function transMeta(req, res) {
           //res.send({ok:true, data:dataM});
           logger.info('transMeta', [dataM, req.info]);
           res.send(dataM);
+
+          configCli.decActive();
+
         }
       }
     });

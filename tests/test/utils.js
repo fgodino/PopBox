@@ -12,8 +12,6 @@ Array.prototype.contains = function(element) {
 var makeRequest = function(options, content, cb) {
   'use strict';
 
-
-
   var req = http.request(options, function(res) {
 
     var data = '';
@@ -45,5 +43,6 @@ var makeRequest = function(options, content, cb) {
   req.end();
 
 };
+
 
 exports.makeRequest = makeRequest;
