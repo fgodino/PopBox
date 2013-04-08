@@ -62,6 +62,7 @@ var addNode = function(name, host, port, cb){
 };
 
 var removeNode = function(name, cb) {
+  console.log('dfgdfgdfg');
   logger.info('Removing node', name);
   if(!redisNodes.hasOwnProperty(name)){
     logger.warning('removeNode()', 'Node ' + name + ' does not exist, wont be removed');
@@ -74,6 +75,7 @@ var removeNode = function(name, cb) {
       if (!err){
         logger.info('Node \'' + name + '\' removed');
         redisNodes[name].redisClient.quit();
+        delete redisNodes[name];
       }
       if (cb && typeof(cb) === 'function') {
         cb(err);

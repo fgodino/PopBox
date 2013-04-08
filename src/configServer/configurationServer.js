@@ -7,13 +7,32 @@ var rc = redis.createClient(config.persistenceRedis.port, config.persistenceRedi
 var count = 0;
 var agents = {};
 
+exports.checkMigrating = function(req, res, next){
+    rc.get('MIGRATING', function(err, migrating){
+      if(err){
+        res.send({errors: [err]}, 400);
+      } else {
+        if (migrating=="true"){
+          res.send('Migrating', 500);
+        } else {
+          next();
+        }
+      }
+    });
+
+};
+
 var migrator = function(cb){
 
-    rc.set('MIGRATING', true);
+  rc.set('MIGRATING', true);
 
-    var subscriber = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
-    var publisher = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
+  var subscriber = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
+  var publisher = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
 
+  setTimeout(delayedMigrate, 4000);
+
+  function delayedMigrate(){
+    console.log('llamado');
     if (count === 0){
       migrated();
     } else {
@@ -49,11 +68,12 @@ var migrator = function(cb){
             }
           });
         } else {
+          publisher.publish("migration:new", "FAIL");
           rc.set('MIGRATING', false);
-          throw new Error(err);
         }
       });
     };
+  };
 };
 
 var uploadRing = function(cb){
@@ -84,8 +104,8 @@ repHelper.bootstrapMigration(function(err){
     var subscriber = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
     subscriber.subscribe("agent:new");
     subscriber.on("message", function(channel, message){
-        console.log('hola');
         if(!agents.hasOwnProperty(message)){
+          console.log('it is new!');
           count++;
           agents[message] = false;
         }
@@ -114,8 +134,8 @@ var addNode = function(req, res){
         res.send({errors: [err]}, 400);
       } else {
         res.send({ok: true}, 200);
-        cb(err);
       }
+      cb(err);
     });
   });
 };
@@ -137,8 +157,8 @@ var delNode = function(req, res){
         res.send({errors: [err]}, 400);
       } else {
         res.send({ok: true}, 200);
-        cb(err);
       }
+      cb(err);
     });
   });
 };

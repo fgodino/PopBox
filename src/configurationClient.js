@@ -29,11 +29,11 @@ migChecker.get('MIGRATING', function(err, res){
 });
 
 exports.checkMigrating = function(req, res, next){
-    if (migrating){
-        res.send('Migrating', 500);
-    } else {
-        next();
-    }
+  if (migrating){
+      res.send('Migrating', 500);
+  } else {
+      next();
+  }
 };
 
 
@@ -59,13 +59,16 @@ exports.init = function(exp){
 var publisher = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
 var subscriber = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
 
-publisher.publish('agent:new', agentId);
+setInterval(function(){
+  publisher.publish('agent:new', agentId);
+},2000);
+
 subscriber.subscribe('migration:new');
 
 subscriber.on('message', function(channel, message){
   if (message === 'NEW') { //Ignore it otherwise
-      if(!migrating) initMigrationProcess();
-      console.log('new');
+    if(!migrating) initMigrationProcess();
+    console.log('new');
   }
 });
 
@@ -73,11 +76,13 @@ subscriber.on('message', function(channel, message){
 var initMigrationProcess = function(){
   migrating = true;
   var checkReady = setInterval(function checkAgain(argument) {
+          console.log('check');
     if (numberActive === 0){
+      console.log('locoo');
       publisher.publish('agent:ok', agentId);
       clearTimeout(checkReady);
     }
-  },2000);
+  }, 2000);
   subscriber.on('message', function onMessage(channel, message){
     if (message === 'OK') { //Ignore it otherwise
       subscriber.removeListener('message', onMessage);
@@ -88,6 +93,10 @@ var initMigrationProcess = function(){
           migrating = false;
         }
       });
+    }
+    else if (message === 'FAIL') { //Ignore it otherwise
+      subscriber.removeListener('message', onMessage);
+      migrating = false;
     }
   });
 };
