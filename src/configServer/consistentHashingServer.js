@@ -5,17 +5,29 @@ config = require('./config.js');
 var replicas = config.hashing.replicas;
 algorithm = config.hashing.algorithm;
 
-var continuum  = {}, keys = [];
+var continuum  = {};
+var partitions = Math.pow(2,5); //Must be a power of two
+var md5spacelength = Math.pow(2,128);
+var keyspacelength = md5spacelength / partitions;
+
+var keys = new Array(partitions);
+var vNodeToNode = {}, keyToVNode = {}, nodes = [];
+
+for(i = 0; i < partitions; i++){
+  keys[i] = (keyspacelength * i).toString(16);
+}
 
 var addNode = function(node) {
 
-  for (var i = 0; i < replicas; i++) {
-    var key = createHash(node + ':' + i);
+  nodes.push(node);
+  var numNodes = nodes.length;
+  var replicas = Math.floor(partitions / numNodes);
 
-    keys.push(key);
+  for (var i=(numNodes-1), j=0; j < replicas; i = (i + numNodes), j++) {
+    var key = keys[i];
     continuum[key] = node;
   }
-  keys.sort();
+    console.log(continuum);
 };
 
 var getContinuum = function(){
@@ -28,13 +40,17 @@ var getKeys = function(){
 
 var removeNode = function(node) {
 
-  for (var i = 0; i < replicas; i++) {
-    var key = createHash(node + ':' + i);
-    delete continuum[key];
+  var remIndex = nodes.indexOf(node);
+  nodes.splice(remIndex, 1);
 
-    var keyIndex = keys.indexOf(key);
-    keys.splice(keyIndex, 1);
+  for (var i = 0, j = 0; i < keys.length; i++){
+    var key = keys[i];
+    if(continuum[key] === node){
+      continuum[key] = nodes[(j % nodes.length)];
+      j++;
+    }
   }
+  console.log(continuum);
 };
 
 
@@ -46,6 +62,12 @@ var getNode = function(key) {
 
   return continuum[keys[pos]];
 };
+
+var getKey = function(key){
+  var hash = createHash(key);
+  var pos  = getNodePosition(hash);
+  return keys[pos];
+}
 
 //binary search
 
@@ -71,8 +93,6 @@ var getNodePosition = function(hash) {
 var createHash = function(str) {
   return crypto.createHash(algorithm).update(str).digest('hex');
 };
-
-
 
 exports.getNode = getNode;
 exports.addNode = addNode;

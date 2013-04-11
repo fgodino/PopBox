@@ -14,6 +14,12 @@ var getNode = function(key) {
   return continuum[keys[pos]];
 };
 
+var getKey = function(key){
+  var hash = createHash(key);
+  var pos  = getNodePosition(hash);
+  return keys[pos];
+}
+
 //binary search
 
 var getNodePosition = function(hash) {
@@ -50,5 +56,6 @@ var createHash = function(str) {
 
 
 exports.getNode = getNode;
+exports.getKey = getKey;
 exports.setKeys = setKeys;
 exports.setContinuum = setContinuum;

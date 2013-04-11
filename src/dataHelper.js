@@ -26,11 +26,16 @@ var config = require('./config.js');
 var path = require('path');
 var log = require('PDITCLogger');
 var logger = log.newLogger();
+var cs = require('./consistentHashingClient.js');
+
+var getHKey = cs.getKey;
+
 logger.prefix = path.basename(module.filename, '.js');
 
 var setKey = function(db, id, value, callback) {
   'use strict';
-  db.set(id, value, function onSet(err) {
+  var idKey = id + '{' + getHKey(id) + '}';
+  db.set(idKey, value, function onSet(err) {
     if (err) {
       //error pushing
       logger.warning(err);
@@ -44,7 +49,8 @@ var setKey = function(db, id, value, callback) {
 
 var getKey = function(db, id, callback) {
   'use strict';
-  db.get(id, function(err, value) {
+  var idKey = id + '{' + getHKey(id) + '}';
+  db.get(idKey, function(err, value) {
     if (err) {
       //error pushing
       logger.warning(err);
@@ -58,7 +64,8 @@ var getKey = function(db, id, callback) {
 
 var exists = function(db, id, callback) {
   'use strict';
-  db.exists(id, function(err, value) {
+  var idKey = id + '{' + getHKey(id) + '}';
+  db.exists(idKey, function(err, value) {
     if (err) {
       //error pushing
       logger.warning(err);
@@ -69,10 +76,10 @@ var exists = function(db, id, callback) {
   });
 };
 
-var pushParallel = function(db, queue, priority, transaction_id) {
+var pushParallel = function(db, queueid, queue, priority, transaction_id) {
   'use strict';
   return function asyncPushParallel(callback) {
-    var fullQueueId = config.dbKeyQueuePrefix + priority + queue.id;
+    var fullQueueId = config.dbKeyQueuePrefix + priority + queue.id + '{' + getKey(queueid) + '}';
     db.rpush(fullQueueId, transaction_id, function onLpushed(err) {
       if (err) {
         //error pushing
@@ -85,10 +92,13 @@ var pushParallel = function(db, queue, priority, transaction_id) {
   };
 };
 
-var hsetHashParallel = function(dbTr, queue, transactionId, sufix, datastr) {
+var hsetHashParallel = function(dbTr, queue, extTransactionId, transactionId, datastr) {
   'use strict';
+
+  var idKey = transactionId + '{' + getHKey(extTransactionId) + '}';
   return function asyncHsetHashParallel(callback) {
-    dbTr.hmset(transactionId + sufix, queue.id, datastr, function(err) {
+    var key = getKey(transactionId);
+    dbTr.hmset(idKey, queue.id, datastr, function(err) {
       if (err) {
         //error pushing
         logger.warning(err);
@@ -101,8 +111,10 @@ var hsetHashParallel = function(dbTr, queue, transactionId, sufix, datastr) {
   };
 };
 
-var hsetMetaHashParallel = function(dbTr, transaction_id, sufix, provision) {
+var hsetMetaHashParallel = function(dbTr, extTransactionId, transaction_id, provision) {
   'use strict';
+
+  var idKey = transaction_id + '{' + getHKey(extTransactionId) + '}';
   return function asyncHsetMetaHash(callback) {
     /*var meta =
      {
@@ -120,7 +132,7 @@ var hsetMetaHashParallel = function(dbTr, transaction_id, sufix, provision) {
       }
     }
 
-    dbTr.hmset(transaction_id + sufix, meta, function onHmset(err) {
+    dbTr.hmset(idKey, meta, function onHmset(err) {
       if (err) {
         //error pushing
         logger.warning('onHmset', err);
@@ -130,10 +142,11 @@ var hsetMetaHashParallel = function(dbTr, transaction_id, sufix, provision) {
   };
 };
 
-var setExpirationDate = function(dbTr, key, provision, callback) {
+var setExpirationDate = function(dbTr, extTransactionId, key, provision, callback) {
   'use strict';
+  var idKey = key + '{' + getHKey(extTransactionId) + '}';
   if (provision.expirationDate) {
-    dbTr.expireat(key, provision.expirationDate, function onExpireat(err) {
+    dbTr.expireat(idKey, provision.expirationDate, function onExpireat(err) {
       if (err) {
         //error setting expiration date
         logger.warning('onExpireat', err);

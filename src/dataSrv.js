@@ -31,6 +31,7 @@ var uuid = require('node-uuid');
 var async = require('async');
 var emitter = require('./emitterModule').getEmitter();
 var crypto = require('crypto');
+var getKey = require('./consistentHashingClient.js').getKey;
 
 var path = require('path');
 var log = require('PDITCLogger');
@@ -40,6 +41,7 @@ logger.prefix = path.basename(module.filename, '.js');
 //Private methods Area
 var pushTransaction = function(appPrefix, provision, callback) {
   'use strict';
+
   //handles a new transaction  (N ids involved)
   var priority = provision.priority + ':', //contains "H" || "L"
       queues = provision.queue, //[{},{}]   //list of ids
@@ -56,15 +58,14 @@ var pushTransaction = function(appPrefix, provision, callback) {
         Math.round(Date.now() / 1000) + config.defaultExpireDelay;
   }
 
-  helper.hsetMetaHashParallel(dbTr, transactionId,
-      ':meta', provision)(function(err) {
+  helper.hsetMetaHashParallel(dbTr, extTransactionId, transactionId + ':meta', provision)(function(err) {
     if (err) {
       manageError(err, callback);
       return;
     }
     else {
       //Set expires for :meta collection
-      helper.setExpirationDate(dbTr, transactionId + ':meta', provision,
+      helper.setExpirationDate(dbTr, extTransactionId, transactionId + ':meta', provision,
           function expirationDateMetaEnd(err) {
             if (err) {
               logger.warning('expirationDateMetaEnd', err);
@@ -74,7 +75,7 @@ var pushTransaction = function(appPrefix, provision, callback) {
       for (i = 0; i < queues.length; i += 1) {
         queue = queues[i];
         //launch push/set:state in parallel for one ID
-        processBatch.push(processOneId(dbTr, transactionId, queue, priority));
+        processBatch.push(processOneId(dbTr, extTransactionId, transactionId, queue, priority));
       }
       async.parallel(processBatch,
           function pushEnd(err) {
@@ -100,13 +101,13 @@ var pushTransaction = function(appPrefix, provision, callback) {
   });
 
 
-  function processOneId(dbTr, transactionId, queue, priority) {
+  function processOneId(dbTr, extTransactionId, transactionId, queue, priority) {
     return function processOneIdAsync(callback) {
       var db = dbCluster.getDb(queue.id); //different DB for different Ids
       async.parallel([
-        helper.pushParallel(db, {id: appPrefix + queue.id}, priority,
+        helper.pushParallel(db, queue.id, {id: appPrefix + queue.id}, priority,
             transactionId),
-        helper.hsetHashParallel(dbTr, queue, transactionId, ':state', 'Pending')
+        helper.hsetHashParallel(dbTr, queue, extTransactionId, transactionId + ':state', 'Pending')
       ], function parallel_end(err) {
         var ev = null;
         dbCluster.free(db);
