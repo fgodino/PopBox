@@ -36,7 +36,7 @@ exports.logger = {};
 exports.logger.logLevel = 'debug';
 exports.logger.inspectDepth = 1;
 exports.logger.Console = {
-  level: 'info', timestamp: true
+  level: 'debug', timestamp: true
 };
 exports.logger.File = {
   level: 'debug', filename: dir_prefix +

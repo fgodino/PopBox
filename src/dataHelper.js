@@ -32,9 +32,9 @@ var getHKey = cs.getKey;
 
 logger.prefix = path.basename(module.filename, '.js');
 
-var setKey = function(db, id, value, callback) {
+var setKey = function(db, extqueueId, id, value, callback) {
   'use strict';
-  var idKey = id + '{' + getHKey(id) + '}';
+  var idKey = id + '{' + getHKey(extqueueId) + '}';
   db.set(idKey, value, function onSet(err) {
     if (err) {
       //error pushing
@@ -47,7 +47,7 @@ var setKey = function(db, id, value, callback) {
   });
 };
 
-var getKey = function(db, id, callback) {
+var getKey = function(db, extqueueId, id, callback) {
   'use strict';
   var idKey = id + '{' + getHKey(id) + '}';
   db.get(idKey, function(err, value) {
@@ -79,7 +79,7 @@ var exists = function(db, id, callback) {
 var pushParallel = function(db, queueid, queue, priority, transaction_id) {
   'use strict';
   return function asyncPushParallel(callback) {
-    var fullQueueId = config.dbKeyQueuePrefix + priority + queue.id + '{' + getKey(queueid) + '}';
+    var fullQueueId = config.dbKeyQueuePrefix + priority + queue.id + '{' + getHKey(queueid) + '}';
     db.rpush(fullQueueId, transaction_id, function onLpushed(err) {
       if (err) {
         //error pushing
@@ -95,10 +95,11 @@ var pushParallel = function(db, queueid, queue, priority, transaction_id) {
 var hsetHashParallel = function(dbTr, queue, extTransactionId, transactionId, datastr) {
   'use strict';
 
+  console.log(queue, extTransactionId, transactionId, datastr);
   var idKey = transactionId + '{' + getHKey(extTransactionId) + '}';
+  console.log(idKey);
   return function asyncHsetHashParallel(callback) {
-    var key = getKey(transactionId);
-    dbTr.hmset(idKey, queue.id, datastr, function(err) {
+    dbTr.hmset(idKey, queue, datastr, function(err) {
       if (err) {
         //error pushing
         logger.warning(err);
