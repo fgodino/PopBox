@@ -18,7 +18,7 @@ var getKey = function(key){
   var hash = createHash(key);
   var pos  = getNodePosition(hash);
   return keys[pos];
-}
+};
 
 //binary search
 

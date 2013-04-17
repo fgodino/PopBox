@@ -49,12 +49,10 @@ var addNode = function(name, host, port, cb){
         cb(err);
       } else {
         redisNodes[name] = {host: host, port: port, redisClient : redisClient};
-        redistributeRemove(name, function(err){
-          hashing.addNode(name);
-          redistributeAdd(name, function(err){
-            logger.info('New node added', name + ' - ' + host + ':' + port);
-            cb(err);
-          });
+        var redistributionObj = hashing.addNode(name);
+        redistributeAdd(name, redistributionObj, function(err){
+          logger.info('New node added', name + ' - ' + host + ':' + port);
+          cb(err);
         });
       }
     });
@@ -62,7 +60,6 @@ var addNode = function(name, host, port, cb){
 };
 
 var removeNode = function(name, cb) {
-  console.log('dfgdfgdfg');
   logger.info('Removing node', name);
   if(!redisNodes.hasOwnProperty(name)){
     logger.warning('removeNode()', 'Node ' + name + ' does not exist, wont be removed');
@@ -70,8 +67,9 @@ var removeNode = function(name, cb) {
       cb('removeNode()', 'Node ' + name + ' does not exist, wont be removed');
     }
   } else {
-    hashing.removeNode(name);
-    redistributeRemove(name, function(err){
+    var redistributionObj = hashing.removeNode(name);
+    console.log("distribuir");
+    redistributeRemove(name, redistributionObj, function(err){
       if (!err){
         logger.info('Node \'' + name + '\' removed');
         redisNodes[name].redisClient.quit();
@@ -85,87 +83,73 @@ var removeNode = function(name, cb) {
 };
 
 
-var redistributeAdd = function(newNode, cb){
+var redistributeAdd = function(nodeTo, redistributionObj, cb){
   redistributionFunctions = [];
-  calculateDistribution(function distribution(err, items){
-    if (!err) {
-      for (var node in items){
-        if (node != newNode){
-          var keys = items[node];
-          var migratingKeys = [];
-          for(id in keys){
-            if (hashing.getNode(id) === newNode){
-              migratingKeys.push(keys[id]);
-            }
-          }
-          if(migratingKeys.length > 0){
-            redistributionFunctions.push(migrateAll(node, newNode, migratingKeys));
-          }
-        }
-      }
 
-      if (redistributionFunctions.length > 0){
-        async.parallel(redistributionFunctions, function (err){
-          if (err){
-            logger.error('migrateKeys()', err);
-          }
-          if (cb && typeof(cb) === 'function') {
-            cb(err);
-          }
-        });
-      } else {
-        if (cb && typeof(cb) === 'function') {
-          cb(err);
-        }
-      }
-
-    }
-  });
-
-  function migrateAll(nodeName, nodeTo, keys){
-    return function(callback){
-      migrateKeys(nodeName, nodeTo, keys, callback);
-    }
+  for(var node in redistributionObj){
+    redistributionFunctions.push(migrateFromOne(node, nodeTo, redistributionObj[node]));
   }
+
+  async.parallel(redistributionFunctions, cb);
 };
 
-var redistributeRemove = function (nodeName, cb) {
-  redistributionObj = {}, redistributionFunctions = [];
+var redistributeRemove = function (nodeFrom, redistributionObj, cb) {
+  redistributionFunctions = [];
 
-  getAllKeys(redisNodes[nodeName], function(err, keys){
+  console.log(redistributionObj);
+
+  for(var node in redistributionObj){
+    console.log(redistributionObj[node]);
+    redistributionFunctions.push(migrateFromOne(nodeFrom, node, redistributionObj[node]));
+  }
+
+  async.parallel(redistributionFunctions, cb);
+};
+
+var getAllKeys = function(node, hash, cb){
+
+  var cPattern = "PB:[QT]|*{" + hash + "}";
+
+  redisNodes[node].redisClient.keys(cPattern , function onGet(err, res){
     if (err){
-      logger.error('getAllKeys', err);
-    } else {
-      for (var id in keys){
-        var nodeTo = hashing.getNode(id);
-        if(!redistributionObj.hasOwnProperty(nodeTo)){
-          redistributionObj[nodeTo] = [];
-        }
-        redistributionObj[nodeTo].push(keys[id]);
-      }
-      for (var nodeTo in redistributionObj){
-        var keysToMigrate = redistributionObj[nodeTo];
-        redistributionFunctions.push(migrateAll(nodeName, nodeTo, keysToMigrate));
-      }
-      async.parallel(redistributionFunctions, function (err){
-        if (err){
-          logger.error('migrateKeys()', err);
-          if (cb && typeof(cb) === 'function') {
-            cb(err);
-          }
-        } else {
-          if (cb && typeof(cb) === 'function') {
-            cb(null);
-          }
-        }
-      });
+      logger.error('getKeys()', err);
     }
+    cb(err, res);
   });
+};
 
-  function migrateAll(nodeName, nodeTo, keys){
+
+var migrateFromOne = function(nodeFrom, nodeTo, keys){
+
+  function _getAllKeys(node, hash){
     return function(callback){
-      migrateKeys(nodeName, nodeTo, keys, callback);
+      getAllKeys(node, hash, callback);
     }
+  }
+
+  return function(callback){
+    async.waterfall([
+      function(callback){
+        var getAllKeysFunctions = [];
+        for (var i=0; i < keys.length; i++){
+          console.log(keys[i]);
+          getAllKeysFunctions.push(_getAllKeys(nodeFrom, keys[i]));
+        }
+        async.parallel(getAllKeysFunctions, function (err, res){
+          var allKeys = [];
+          if(!err){
+            for (var i=0; i < res.length; i++){
+              allKeys = allKeys.concat(res[i]);
+            }
+          }
+          callback(err, allKeys);
+        });
+      },
+      function(allKeys, callback){
+        console.log(allKeys);
+        migrateKeys(nodeFrom, nodeTo, allKeys, callback);
+      }
+    ], callback);
   }
 };
 
@@ -194,61 +178,6 @@ var migrateKeys = function(from, to, keys, cb) {
     cb(err,res);
   });
 };
-
-var calculateDistribution = function(cb){
-  var nodeFunctions = {}; //Parallel functions as an object to receive results in an object.
-  for(var node in redisNodes){
-    nodeFunctions[node] = _getAllKeysParrallel(redisNodes[node]);
-  }
-
-  async.parallel(nodeFunctions, function(err, res){
-    if (err){
-      logger.error('getAllKeys()', err);
-    }
-
-    if (cb && typeof(cb) === 'function') {
-      cb(err, res);
-    }
-  });
-
-  function _getAllKeysParrallel (item){
-    return function _getAllKeys (callback){
-      getAllKeys(item, callback);
-    }
-  }
-};
-
-var getAllKeys = function(node, cb){
-  console.log('sigue');
-  node.redisClient.keys("PB:[TQ]|*", function onGet(err, res){
-    if (err){
-      logger.error('getKeys()', err);
-    }
-    if (cb && typeof(cb) === 'function') {
-      var keyAndId = {};
-      for(var i = 0; i < res.length; i++){
-        keyAndId[getKeyId(res[i])] = res[i];
-      }
-      cb(err, keyAndId);
-    }
-  });
-};
-
-var getKeyId = function(key){
-
-  var queue = /PB:Q/, trans = /PB:T/;
-
-  if(queue.test(key)){
-    var splitted = key.split(':');
-    var id = splitted[3];
-    return id;
-  }
-  else if (trans.test(key)){
-    var splitted = key.split(/\||:/);
-    var id = splitted[2];
-    return id;
-  }
-}
 
 function createClient(port, host, cb){
   var cli = redisModule.createClient(port, host);
@@ -297,7 +226,7 @@ var bootstrapMigration = function(callback){
 
   redistributionFunctions = [];
 
-  calculateDistribution(function(err, items){
+  /*calculateDistribution(function(err, items){
     if (!err){
       for (nodeFrom in items){
         var redistribution = {};
@@ -323,7 +252,8 @@ var bootstrapMigration = function(callback){
     } else {
        callback(err);
     }
-  });
+  });*/
+  callback(null);
 
   function migrateAll(nodeName, nodeTo, keys){
     return function(callback){
@@ -342,7 +272,7 @@ var getNodes = function(){
   }
 
   return redisHostPort;
-}
+};
 
 
 /**

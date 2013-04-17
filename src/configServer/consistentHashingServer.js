@@ -11,7 +11,7 @@ var md5spacelength = Math.pow(2,128);
 var keyspacelength = md5spacelength / partitions;
 
 var keys = new Array(partitions);
-var vNodeToNode = {}, keyToVNode = {}, nodes = [];
+var nodes = [];
 
 for(i = 0; i < partitions; i++){
   keys[i] = (keyspacelength * i).toString(16);
@@ -22,13 +22,22 @@ var addNode = function(node) {
   nodes.push(node);
   var numNodes = nodes.length;
   var replicas = Math.floor(partitions / numNodes);
+  var changedNodes = {};
 
   for (var i=(numNodes-1), j=0; j < replicas; i = (i + numNodes), j++) {
     var key = keys[i];
+    var oldNode = continuum[key];
+    if(!changedNodes.hasOwnProperty(oldNode)){
+      changedNodes[oldNode] = [];
+    }
+    changedNodes[oldNode].push(key);
     continuum[key] = node;
   }
-    console.log(continuum);
+
+  return changedNodes;
 };
+
+
 
 var getContinuum = function(){
   return continuum;
@@ -42,15 +51,23 @@ var removeNode = function(node) {
 
   var remIndex = nodes.indexOf(node);
   nodes.splice(remIndex, 1);
+  var changedNodes = {};
 
   for (var i = 0, j = 0; i < keys.length; i++){
     var key = keys[i];
+
     if(continuum[key] === node){
       continuum[key] = nodes[(j % nodes.length)];
+      var newNode = continuum[key];
+      if(!changedNodes.hasOwnProperty(newNode)){
+        changedNodes[newNode] = [];
+      }
+      changedNodes[newNode].push(key);
       j++;
     }
   }
-  console.log(continuum);
+
+  return changedNodes;
 };
 
 
