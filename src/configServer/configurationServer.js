@@ -32,7 +32,6 @@ var migrator = function(cb){
   setTimeout(delayedMigrate, 4000);
 
   function delayedMigrate(){
-    console.log('llamado');
     if (count === 0){
       migrated();
     } else {
@@ -42,7 +41,7 @@ var migrator = function(cb){
       subscriber.subscribe("agent:ok");
       subscriber.on("message", function(channel, message){
         if(agents.hasOwnProperty(message)){
-          agents[message] = true;
+          agents[message].ready = true;
           count--;
         }
         if(count === 0){
@@ -57,7 +56,7 @@ var migrator = function(cb){
         if(!err){
           count = Object.keys(agents).length;
           for (var agent in agents){
-            agents[agent] = false;
+            agents[agent].ready = false;
           }
           uploadRing(function(err){
             if(!err){
@@ -74,6 +73,29 @@ var migrator = function(cb){
       });
     };
   };
+};
+
+var monitorAgent = function(monitor, id){
+  var num_tries = 0;
+
+  function newMessage(channel, message){
+    if(message === id){
+      num_tries = 0;
+    }
+  }
+
+  monitor.on('message', newMessage);
+
+  var monitorInterval = setInterval(function(){
+    num_tries++;
+    if(num_tries > 3){
+      console.log('peto agente');
+      monitor.removeListener('connection', newMessage);
+      agents[id].ok = false;
+      count--;
+      clearTimeout(monitorInterval);
+    }
+  }, 2000);
 };
 
 var uploadRing = function(cb){
@@ -94,21 +116,23 @@ var uploadRing = function(cb){
 };
 
 repHelper.generateNodes();
+
 repHelper.bootstrapMigration(function(err){
   if(err){
     console.log(err);
   }
   else {
-    uploadRing();
-    rc.set('MIGRATING', false);
     var subscriber = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
     subscriber.subscribe("agent:new");
     subscriber.on("message", function(channel, message){
         if(!agents.hasOwnProperty(message)){
-          console.log('it is new!');
+          monitorAgent(subscriber, message);
           count++;
-          agents[message] = false;
+          agents[message] = {ready : false, ok : true};
         }
+    });
+    migrator(function(cb){
+      cb();
     });
   }
 });

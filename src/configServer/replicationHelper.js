@@ -219,48 +219,36 @@ var generateNodes = function(){
   }
 };
 
+var calculateDistribution = function(){
+  var continuum = hashing.getContinuum();
+  var currentDist = {};
+
+  for(var key in continuum){
+    if(!currentDist.hasOwnProperty(continuum[key])){
+      currentDist[continuum[key]] = [];
+    }
+    currentDist[continuum[key]].push(key);
+  }
+
+  return currentDist;
+};
+
 
 //Bootstrapping clients and redistributing
 
 var bootstrapMigration = function(callback){
 
-  redistributionFunctions = [];
+  var redistributionFunctions = [];
+  var currentDist = calculateDistribution();
 
-  /*calculateDistribution(function(err, items){
-    if (!err){
-      for (nodeFrom in items){
-        var redistribution = {};
-        var keys = items[nodeFrom];
-        for(var id in keys){
-          var redNode = hashing.getNode(id);
-          if (redNode != nodeFrom){
-            if (!redistribution.hasOwnProperty(redNode)) {
-              redistribution[redNode] = [];
-            }
-            redistribution[redNode].push(keys[id]);
-          }
-        }
-        if(Object.keys(redistribution).length > 0) {
-          for(nodeDest in redistribution){
-            redistributionFunctions.push(migrateAll(nodeFrom, nodeDest, redistribution[nodeDest]));
-          }
-        }
+  for(var nodeTo in currentDist){
+    for(var nodeFrom in currentDist){
+      if(nodeFrom != nodeTo){
+        redistributionFunctions.push(migrateFromOne(nodeFrom, nodeTo, currentDist[nodeTo]));
       }
-
-      async.parallel(redistributionFunctions, callback);
-
-    } else {
-       callback(err);
-    }
-  });*/
-  callback(null);
-
-  function migrateAll(nodeName, nodeTo, keys){
-    return function(callback){
-      migrateKeys(nodeName, nodeTo, keys, callback);
     }
   }
-
+  async.parallel(redistributionFunctions, callback);
 };
 
 var getNodes = function(){
