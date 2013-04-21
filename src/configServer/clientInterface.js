@@ -48,8 +48,8 @@ app.port = config.adminPort;
 
 app.use(express.query());
 app.use(express.bodyParser());
-app.all('*', configSrv.checkMigrating);
-app.post('/add', configSrv.addNode);
-app.post('/del', configSrv.delNode);
+app.post('/add', configSrv.checkMigrating, configSrv.addNode);
+app.post('/del', configSrv.checkMigrating, configSrv.delNode);
+app.get('/get', configSrv.getAgents);
 
 app.listen(app.port);

@@ -37,7 +37,13 @@ var addNode = function(node) {
   return changedNodes;
 };
 
+var setKeys = function(_keys){
+  keys = _keys;
+}
 
+var setContinuum = function(_continuum){
+  continuum = _continuum;
+}
 
 var getContinuum = function(){
   return continuum;
@@ -116,3 +122,5 @@ exports.addNode = addNode;
 exports.removeNode = removeNode;
 exports.getContinuum = getContinuum;
 exports.getKeys = getKeys;
+exports.setContinuum = setContinuum;
+exports.setKeys = setKeys;

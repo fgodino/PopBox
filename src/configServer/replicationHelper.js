@@ -26,6 +26,7 @@ var config = require('./config.js');
 var hashing = require('./consistentHashingServer.js');
 var async = require('async');
 var EventEmitter = require( "events" ).EventEmitter;
+var rc = redisModule.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
 
 var path = require('path');
 var log = require('PDITCLogger');
@@ -40,8 +41,8 @@ logger.prefix = path.basename(module.filename, '.js');
 var addNode = function(name, host, port, cb){
   logger.info('Adding new node ', name + ' - ' + host + ':' + port);
   if(redisNodes.hasOwnProperty(name)){
-    logger.warning('addNode()', 'Node ' + name + ' already exists, wont be added');
-    cb('addNode()', 'Node ' + name + ' already exists, wont be added');
+    logger.warning('Node ' + name + ' already exists, wont be added');
+    cb('Node ' + name + ' already exists, wont be added');
   }
   else {
     var redisClient = createClient(port, host, function(err){
@@ -62,13 +63,12 @@ var addNode = function(name, host, port, cb){
 var removeNode = function(name, cb) {
   logger.info('Removing node', name);
   if(!redisNodes.hasOwnProperty(name)){
-    logger.warning('removeNode()', 'Node ' + name + ' does not exist, wont be removed');
+    logger.warning('Node ' + name + ' does not exist, wont be removed');
     if (cb && typeof(cb) === 'function') {
-      cb('removeNode()', 'Node ' + name + ' does not exist, wont be removed');
+      cb('Node ' + name + ' does not exist, wont be removed');
     }
   } else {
     var redistributionObj = hashing.removeNode(name);
-    console.log("distribuir");
     redistributeRemove(name, redistributionObj, function(err){
       if (!err){
         logger.info('Node \'' + name + '\' removed');
@@ -262,6 +262,42 @@ var getNodes = function(){
   return redisHostPort;
 };
 
+var downloadConfig = function (callback){
+  var multi = rc.multi();
+
+  multi.hgetall('NODES');
+  multi.hgetall('CONTINUUM');
+  multi.lrange('KEYS', 0, -1);
+
+  multi.exec(function(err, res){
+    if(err){
+      callback(err);
+      return;
+    }
+    var serializedNodes = res[0];
+    var continuum = res[1];
+    var keys = res[2];
+    hashing.setKeys(keys);
+    hashing.setContinuum(continuum);
+
+    //deserialize nodes
+    var deserializedNodes = {};
+    for (var node in serializedNodes){
+      var info = JSON.parse(serializedNodes[node]);
+      deserializedNodes[node] = info;
+    }
+    console.log(Object.keys(deserializedNodes));
+    for (var node in deserializedNodes) {
+      console.log(node);
+      var port = deserializedNodes[node].port || redisModule.DEFAULT_PORT;
+      var host = deserializedNodes[node].host;
+
+      redisNodes[node] = {host : host, port : port};
+    }
+    callback(err);
+  });
+};
+
 
 /**
  *
@@ -278,3 +314,5 @@ exports.removeNode = removeNode;
 exports.bootstrapMigration = bootstrapMigration;
 
 exports.getNodes = getNodes;
+
+exports.downloadConfig = downloadConfig;

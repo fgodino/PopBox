@@ -31,7 +31,8 @@ exports.logger.File = {
 //exports.redisServers = [{host:'localhost'}, {host:'localhost', port:'6789'}];
 exports.redisServers = {
   redis1 : {host: 'localhost', port: 6379},
-  redis2 : {host: 'localhost', port: 8888}
+  redis2 : {host: 'localhost', port: 8888},
+  redis3 : {host: 'localhost', port: 9999}
 };
 
 exports.persistenceRedis = {host : 'localhost', port : 7777};
@@ -40,7 +41,7 @@ exports.hashing = {};
 exports.hashing.replicas = 10;
 exports.hashing.algorithm = 'md5';
 
-exports.adminPort = 2300;
+exports.adminPort = 2400;
 /**
  *
  * @type {Number}

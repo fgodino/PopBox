@@ -2,29 +2,39 @@ var repHelper = require('./replicationHelper.js');
 var hashHelper = require('./consistentHashingServer.js');
 var redis = require('redis');
 var config = require('./config.js');
+var uuid = require("node-uuid");
 var rc = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
 
+var serverId = uuid.v1();
 var count = 0;
 var agents = {};
+var available = false;
+
+rc.get('MIGRATING', function(err, migrating){
+  if(err){
+    available = false;
+  } else {
+    if (migrating=="true"){
+      available = false;
+    } else {
+      available = true;
+    }
+  }
+});
 
 exports.checkMigrating = function(req, res, next){
-    rc.get('MIGRATING', function(err, migrating){
-      if(err){
-        res.send({errors: [err]}, 400);
-      } else {
-        if (migrating=="true"){
-          res.send('Migrating', 500);
-        } else {
-          next();
-        }
-      }
-    });
-
+  if(available){
+    next();
+  }
+  else {
+    res.send('Not available', 500);
+  }
 };
 
 var migrator = function(cb){
 
   rc.set('MIGRATING', true);
+  available = false;
 
   var subscriber = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
   var publisher = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
@@ -40,27 +50,24 @@ var migrator = function(cb){
 
       subscriber.subscribe("agent:ok");
       subscriber.on("message", function(channel, message){
-        if(agents.hasOwnProperty(message)){
+        if(agents.hasOwnProperty(message) && agents[message].ok){
           agents[message].ready = true;
           count--;
-        }
-        if(count === 0){
-          migrated();
+          if(count === 0){
+            subscriber.unsubscribe("agent:ok");
+            migrated();
+          }
         }
       });
     }
 
     function migrated(){
       cb(function(err){
-        console.log('se ha migrado');
         if(!err){
-          count = Object.keys(agents).length;
-          for (var agent in agents){
-            agents[agent].ready = false;
-          }
           uploadRing(function(err){
             if(!err){
               rc.set('MIGRATING', false);
+              available = true;
               publisher.publish("migration:new", "OK");
             } else {
               throw new Error(err);
@@ -69,6 +76,11 @@ var migrator = function(cb){
         } else {
           publisher.publish("migration:new", "FAIL");
           rc.set('MIGRATING', false);
+          available = true;
+        }
+        count = Object.keys(agents).length;
+        for (var agent in agents){
+          agents[agent].ready = false;
         }
       });
     };
@@ -122,14 +134,24 @@ repHelper.bootstrapMigration(function(err){
     console.log(err);
   }
   else {
-    var subscriber = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
-    subscriber.subscribe("agent:new");
-    subscriber.on("message", function(channel, message){
-        if(!agents.hasOwnProperty(message)){
-          monitorAgent(subscriber, message);
-          count++;
-          agents[message] = {ready : false, ok : true};
-        }
+    var subscriberAgent = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
+    var subscriberConfig = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
+    subscriberAgent.subscribe("agent:new");
+    subscriberConfig.subscribe("migration:new");
+    subscriberAgent.on("message", function(channel, message){
+      if(!agents.hasOwnProperty(message)){
+        monitorAgent(subscriberAgent, message);
+        count++;
+        agents[message] = {ready : false, ok : true};
+      }
+    });
+    subscriberConfig.on("message", function(channel, message){
+      if(message === "OK"){
+        available = false;
+        repHelper.downloadConfig(function(err){
+          if (!err) available = true;
+        })
+      }
     });
     migrator(function(cb){
       cb();
@@ -138,18 +160,19 @@ repHelper.bootstrapMigration(function(err){
 });
 
 var addNode = function(req, res){
-  var host = req.body.host || 'localhost';
-  var port = req.body.port;
-  var name = req.body.name;
+  var host = req.body.host || 'localhost', port = req.body.port, name = req.body.name;
+  var errors = []
 
   console.log(host, port, name);
 
   if (!req.headers['content-type'] || req.headers['content-type'] !== 'application/json') {
-    res.send({errors: ['Invalid content-type']}, 400);
-    return;
+    errors.push('Invalid content-type')
   }
   if (!host || !port || !name){
-    res.send({errors: ['missing fields']}, 400);
+    errors.push('missing fields');
+  }
+  if(errors.length > 0){
+    res.send({errors: errors}, 400);
     return;
   }
   migrator(function(cb){
@@ -166,13 +189,16 @@ var addNode = function(req, res){
 
 var delNode = function(req, res){
   var name = req.body.name;
+  var errors = [];
 
   if (!req.headers['content-type'] || req.headers['content-type'] !== 'application/json') {
-    res.send({errors: ['Invalid content-type']}, 400);
-    return;
+    errors.push('Invalid content-type')
   }
   if (!name){
-    res.send({errors: ['missing fields']}, 400);
+    errors.push('missing fields');
+  }
+  if(errors.length > 0){
+    res.send({errors: errors}, 400);
     return;
   }
   migrator(function(cb){
@@ -187,7 +213,12 @@ var delNode = function(req, res){
   });
 };
 
+var getAgents = function(req, res){
+  res.send(agents,200);
+}
+
 exports.delNode = delNode;
 exports.addNode = addNode;
+exports.getAgents = getAgents;
 
 

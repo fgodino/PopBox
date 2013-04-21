@@ -78,7 +78,6 @@ var initMigrationProcess = function(){
   var checkReady = setInterval(function checkAgain(argument) {
           console.log('check');
     if (numberActive === 0){
-      console.log('locoo');
       publisher.publish('agent:ok', agentId);
       clearTimeout(checkReady);
     }
