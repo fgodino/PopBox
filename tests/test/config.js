@@ -16,6 +16,4 @@ exports.hostname = 'localhost';
  */
 exports.protocol = 'http';
 
-exports.redis = {};
-exports.redis.host = 'localhost';
-exports.redis.port = 8124;
+exports.redis = [{host: 'localhost', port: 6379},{host: 'localhost', port: 8888}];

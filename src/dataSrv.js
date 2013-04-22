@@ -339,12 +339,11 @@ function getPopData(dataH, callback, queue) {
       cleanData = payloadWithNulls.filter(function notNull(elem) {
         return elem !== null;
       });
-      console.log(cleanData);
       //SET NEW STATE for Every popped transaction
       newStateBatch = cleanData.map(function prepareStateBatch(elem) {
         transactionId = elem.transactionId;
         dbTr = dbCluster.getDb(transactionId);
-        return helper.hsetHashParallel(dbTr, queue, transactionId, ':state',
+        return helper.hsetHashParallel(dbTr, queue, transactionId, 'PB:T|' + transactionId + ':state',
             'Delivered');
 
       });

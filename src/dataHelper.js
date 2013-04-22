@@ -95,9 +95,7 @@ var pushParallel = function(db, queueid, queue, priority, transaction_id) {
 var hsetHashParallel = function(dbTr, queue, extTransactionId, transactionId, datastr) {
   'use strict';
 
-  console.log(queue, extTransactionId, transactionId, datastr);
   var idKey = transactionId + '{' + getHKey(extTransactionId) + '}';
-  console.log(idKey);
   return function asyncHsetHashParallel(callback) {
     dbTr.hmset(idKey, queue, datastr, function(err) {
       if (err) {

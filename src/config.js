@@ -33,10 +33,10 @@ if (process.env.POPBOX_DIR_PREFIX) {
  * @type {String}
  */
 exports.logger = {};
-exports.logger.logLevel = 'debug';
+exports.logger.logLevel = 'warning';
 exports.logger.inspectDepth = 1;
 exports.logger.Console = {
-  level: 'debug', timestamp: true
+  level: 'warning', timestamp: true
 };
 exports.logger.File = {
   level: 'debug', filename: dir_prefix +
