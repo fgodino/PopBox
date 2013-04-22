@@ -51,9 +51,15 @@ var addNode = function(name, host, port, cb){
       } else {
         redisNodes[name] = {host: host, port: port, redisClient : redisClient};
         var redistributionObj = hashing.addNode(name);
-        redistributeAdd(name, redistributionObj, function(err){
-          logger.info('New node added', name + ' - ' + host + ':' + port);
-          cb(err);
+        distributeBefore(name, function(err){
+          if(err){
+            cb(err);
+          } else {
+            redistributeAdd(name, redistributionObj, function(err){
+              logger.info('New node added', name + ' - ' + host + ':' + port);
+              cb(err);
+            });
+          }
         });
       }
     });
@@ -98,9 +104,8 @@ var redistributeRemove = function (nodeFrom, redistributionObj, cb) {
 
   console.log(redistributionObj);
 
-  for(var node in redistributionObj){
-    console.log(redistributionObj[node]);
-    redistributionFunctions.push(migrateFromOne(nodeFrom, node, redistributionObj[node]));
+  for(var nodeTo in redistributionObj){
+    redistributionFunctions.push(migrateFromOne(nodeFrom, nodeTo, redistributionObj[nodeTo]));
   }
 
   async.parallel(redistributionFunctions, cb);
@@ -213,10 +218,10 @@ var generateNodes = function(){
 
     logger.info('Connected to REDIS ', host + ':' + port);
     cli.select(config.selectedDB);
-    cli.isOwn = false;
 
     hashing.addNode(node);
   }
+  console.log(redisNodes);
 };
 
 var calculateDistribution = function(){
@@ -233,6 +238,16 @@ var calculateDistribution = function(){
   return currentDist;
 };
 
+var distributeBefore = function(node, callback){
+  var redistributionFunctions = [];
+  var currentDist = calculateDistribution();
+
+  for(var nodeTo in currentDist){
+    redistributionFunctions.push(migrateFromOne(node, nodeTo, currentDist[nodeTo]));
+  }
+
+  async.parallel(redistributionFunctions, callback);
+};
 
 //Bootstrapping clients and redistributing
 
@@ -288,11 +303,12 @@ var downloadConfig = function (callback){
     }
     console.log(Object.keys(deserializedNodes));
     for (var node in deserializedNodes) {
-      console.log(node);
+
       var port = deserializedNodes[node].port || redisModule.DEFAULT_PORT;
       var host = deserializedNodes[node].host;
+      var cli = createClient(port, host);
 
-      redisNodes[node] = {host : host, port : port};
+      redisNodes[node] = {host : host, port : port, redisClient : cli};
     }
     callback(err);
   });

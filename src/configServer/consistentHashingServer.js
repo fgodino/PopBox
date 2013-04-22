@@ -76,7 +76,6 @@ var removeNode = function(node) {
   return changedNodes;
 };
 
-
 var getNode = function(key) {
   if (keys.length === 0) return 0;
 
