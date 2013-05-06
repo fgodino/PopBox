@@ -26,7 +26,6 @@ var config = require('./config.js');
 var hashing = require('./consistentHashingServer.js');
 var async = require('async');
 var EventEmitter = require( "events" ).EventEmitter;
-var rc = redisModule.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
 
 var path = require('path');
 var log = require('PDITCLogger');
@@ -45,21 +44,16 @@ var addNode = function(name, host, port, cb){
     cb('Node ' + name + ' already exists, wont be added');
   }
   else {
-    var redisClient = createClient(port, host, function(err){
+    var redisClient = redisModule.createClient(port, host);
+    redisNodes[name] = {host: host, port: port, redisClient : redisClient};
+    var redistributionObj = hashing.addNode(name);
+    distributeBefore(name, function(err){
       if(err){
         cb(err);
       } else {
-        redisNodes[name] = {host: host, port: port, redisClient : redisClient};
-        var redistributionObj = hashing.addNode(name);
-        distributeBefore(name, function(err){
-          if(err){
+        redistributeAdd(name, redistributionObj, function(err){
+          logger.info('New node added', name + ' - ' + host + ':' + port);
             cb(err);
-          } else {
-            redistributeAdd(name, redistributionObj, function(err){
-              logger.info('New node added', name + ' - ' + host + ':' + port);
-              cb(err);
-            });
-          }
         });
       }
     });
@@ -184,34 +178,13 @@ var migrateKeys = function(from, to, keys, cb) {
   });
 };
 
-function createClient(port, host, cb){
-  var cli = redisModule.createClient(port, host);
-
-  cli.on('error', function(err){
-    logger.warning('createClient()', err);
-    if (cb && typeof(cb) === 'function') {
-      cb(err);
-    }
-    throw new Error(err);
-  });
-
-  cli.on('ready', function(){
-    logger.debug('createClient()', 'ready');
-    if (cb && typeof(cb) === 'function') {
-      cb(null);
-    }
-  });
-
-  return cli;
-}
-
 // Init Nodes and functions
 
 var generateNodes = function(){
   for (var node in redisNodes) {
     var port = redisNodes[node].port || redisModule.DEFAULT_PORT;
     var host = redisNodes[node].host;
-    var cli = createClient(port, host);
+    var cli = redisModule.createClient(port, host);
     redisNodes[node].redisClient = cli;
 
     require('../hookLogger.js').initRedisHook(cli, logger);
@@ -277,7 +250,7 @@ var getNodes = function(){
   return redisHostPort;
 };
 
-var downloadConfig = function (callback){
+var downloadConfig = function (rc, callback){
   var multi = rc.multi();
 
   multi.hgetall('NODES');
@@ -306,7 +279,7 @@ var downloadConfig = function (callback){
 
       var port = deserializedNodes[node].port || redisModule.DEFAULT_PORT;
       var host = deserializedNodes[node].host;
-      var cli = createClient(port, host);
+      var cli = redisModule.createClient(port, host);
 
       redisNodes[node] = {host : host, port : port, redisClient : cli};
     }

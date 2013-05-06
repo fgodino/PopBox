@@ -53,3 +53,8 @@ app.post('/del', configSrv.checkMigrating, configSrv.delNode);
 app.get('/get', configSrv.getAgents);
 
 app.listen(app.port);
+
+process.on('uncaughtException', function onUncaughtException(err) {
+  'use strict';
+  logger.warning('onUncaughtException', err);
+});

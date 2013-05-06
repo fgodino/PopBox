@@ -30,12 +30,12 @@ exports.logger.File = {
  */
 //exports.redisServers = [{host:'localhost'}, {host:'localhost', port:'6789'}];
 exports.redisServers = {
-  redis1 : {host: 'localhost', port: 6379},
-  redis2 : {host: 'localhost', port: 8888},
-  redis3 : {host: 'localhost', port: 9999}
+  redis1 : {host: 'localhost', port: 6379}
 };
 
-exports.persistenceRedis = {host : 'localhost', port : 7777};
+
+exports.masterName = "mymaster";
+exports.redisSentinel = {host : 'localhost', port : 26379};
 
 exports.hashing = {};
 exports.hashing.replicas = 10;

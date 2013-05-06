@@ -2,25 +2,29 @@ var repHelper = require('./replicationHelper.js');
 var hashHelper = require('./consistentHashingServer.js');
 var redis = require('redis');
 var config = require('./config.js');
+var haMon = require('./haMonitor.js');
 var uuid = require("node-uuid");
-var rc = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
 
 var serverId = uuid.v1();
 var count = 0;
 var agents = {};
 var available = false;
+var persistenceClient;
+var rc;
 
-rc.get('MIGRATING', function(err, migrating){
-  if(err){
-    available = false;
-  } else {
-    if (migrating=="true"){
-      available = false;
-    } else {
-      available = true;
-    }
-  }
-});
+var createClient = function(port, host){
+  var redisCli = redis.createClient(port, host);
+  var reference = {cli : redisCli};
+  haMon.masterChanged.on('switched', function(newMaster){
+    console.log(newMaster);
+    redisCli.end();
+    persistenceClient = newMaster;
+    redisCli = redis.createClient(newMaster.port, newMaster.host);
+    reference.cli = redisCli;
+  });
+
+  return reference;
+};
 
 exports.checkMigrating = function(req, res, next){
   if(available){
@@ -33,11 +37,11 @@ exports.checkMigrating = function(req, res, next){
 
 var migrator = function(cb){
 
-  rc.set('MIGRATING', true);
+  rc.cli.set('MIGRATING', true);
   available = false;
 
-  var subscriber = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
-  var publisher = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
+  var subscriber = createClient(persistenceClient.port, persistenceClient.host);
+  var publisher = createClient(persistenceClient.port, persistenceClient.host);
 
   setTimeout(delayedMigrate, 4000);
 
@@ -46,15 +50,15 @@ var migrator = function(cb){
       migrated();
     } else {
 
-      publisher.publish("migration:new", "NEW");
+      publisher.cli.publish("migration:new", "NEW");
 
-      subscriber.subscribe("agent:ok");
-      subscriber.on("message", function(channel, message){
+      subscriber.cli.subscribe("agent:ok");
+      subscriber.cli.on("message", function(channel, message){
         if(agents.hasOwnProperty(message) && agents[message].ok){
           agents[message].ready = true;
           count--;
           if(count === 0){
-            subscriber.unsubscribe("agent:ok");
+            subscriber.cli.unsubscribe("agent:ok");
             migrated();
           }
         }
@@ -66,16 +70,16 @@ var migrator = function(cb){
         if(!err){
           uploadRing(function(err){
             if(!err){
-              rc.set('MIGRATING', false);
+              rc.cli.set('MIGRATING', false);
               available = true;
-              publisher.publish("migration:new", "OK");
+              publisher.cli.publish("migration:new", "OK");
             } else {
               throw new Error(err);
             }
           });
         } else {
-          publisher.publish("migration:new", "FAIL");
-          rc.set('MIGRATING', false);
+          publisher.cli.publish("migration:new", "FAIL");
+          rc.cli.set('MIGRATING', false);
           available = true;
         }
         count = Object.keys(agents).length;
@@ -115,7 +119,7 @@ var uploadRing = function(cb){
   var keys = hashHelper.getKeys();
   var nodes = repHelper.getNodes();
 
-  var multi = rc.multi();
+  var multi = rc.cli.multi();
 
   multi.del('CONTINUUM');
   multi.del('KEYS');
@@ -129,34 +133,53 @@ var uploadRing = function(cb){
 
 repHelper.generateNodes();
 
-repHelper.bootstrapMigration(function(err){
+haMon.getMaster(function(err,master){
+  console.log(master);
   if(err){
-    console.log(err);
+    return;
   }
-  else {
-    var subscriberAgent = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
-    var subscriberConfig = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
-    subscriberAgent.subscribe("agent:new");
-    subscriberConfig.subscribe("migration:new");
-    subscriberAgent.on("message", function(channel, message){
-      if(!agents.hasOwnProperty(message)){
-        monitorAgent(subscriberAgent, message);
-        count++;
-        agents[message] = {ready : false, ok : true};
-      }
-    });
-    subscriberConfig.on("message", function(channel, message){
-      if(message === "OK"){
+  persistenceClient = master;
+  rc = createClient(persistenceClient.port, persistenceClient.host);
+  rc.cli.get('MIGRATING', function(err, migrating){
+    if(err){
+      available = false;
+    } else {
+      if (migrating=="true"){
         available = false;
-        repHelper.downloadConfig(function(err){
-          if (!err) available = true;
-        })
+      } else {
+        available = true;
       }
-    });
-    migrator(function(cb){
-      cb();
-    });
-  }
+    }
+  });
+  repHelper.bootstrapMigration(function(err){
+    if(err){
+      console.log(err);
+    }
+    else {
+      var subscriberAgent = createClient(persistenceClient.port,persistenceClient.host);
+      var subscriberConfig = createClient(persistenceClient.port, persistenceClient.host);
+      subscriberAgent.cli.subscribe("agent:new");
+      subscriberConfig.cli.subscribe("migration:new");
+      subscriberAgent.cli.on("message", function(channel, message){
+        if(!agents.hasOwnProperty(message)){
+          monitorAgent(subscriberAgent, message);
+          count++;
+          agents[message] = {ready : false, ok : true};
+        }
+      });
+      subscriberConfig.cli.on("message", function(channel, message){
+        if(message === "OK"){
+          available = false;
+          repHelper.downloadConfig(rc.cli,function(err){
+            if (!err) available = true;
+          })
+        }
+      });
+      migrator(function(cb){
+        cb();
+      });
+    }
+  });
 });
 
 var addNode = function(req, res){
@@ -215,7 +238,9 @@ var delNode = function(req, res){
 
 var getAgents = function(req, res){
   res.send(agents,200);
-}
+};
+
+
 
 exports.delNode = delNode;
 exports.addNode = addNode;
