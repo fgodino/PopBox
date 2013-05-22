@@ -58,7 +58,8 @@ exports.slave = false;
 exports.showDeployInformation = true;
 
 
-exports.persistenceRedis = {host : 'localhost', port : 7777};
+exports.masterName = "mymaster";
+exports.redisSentinel = {host : 'localhost', port : 26379};
 
 /**
  *

@@ -26,6 +26,7 @@ var config = require('./config.js');
 var hashing = require('./consistentHashingServer.js');
 var async = require('async');
 var EventEmitter = require( "events" ).EventEmitter;
+var haMon = require('./haMonitor.js');
 
 var path = require('path');
 var log = require('PDITCLogger');
@@ -33,9 +34,18 @@ var logger = log.newLogger();
 
 
 var redisNodes = config.redisServers;
+haMon.newSentinel(redisNodes);
+
 
 logger.prefix = path.basename(module.filename, '.js');
 
+var setNodes = function(nodes){
+  redisNodes = nodes;
+};
+
+var getNodes = function(){
+  return redisNodes;
+};
 
 var addNode = function(name, host, port, cb){
   logger.info('Adding new node ', name + ' - ' + host + ':' + port);
@@ -123,7 +133,7 @@ var migrateFromOne = function(nodeFrom, nodeTo, keys){
   function _getAllKeys(node, hash){
     return function(callback){
       getAllKeys(node, hash, callback);
-    }
+    };
   }
 
   return function(callback){
@@ -149,7 +159,7 @@ var migrateFromOne = function(nodeFrom, nodeTo, keys){
         migrateKeys(nodeFrom, nodeTo, allKeys, callback);
       }
     ], callback);
-  }
+  };
 };
 
 var migrateKeys = function(from, to, keys, cb) {
@@ -239,7 +249,7 @@ var bootstrapMigration = function(callback){
   async.parallel(redistributionFunctions, callback);
 };
 
-var getNodes = function(){
+var getNodesSerialized = function(){
   var redisHostPort = {};
 
   for(var node in redisNodes){
@@ -249,6 +259,7 @@ var getNodes = function(){
 
   return redisHostPort;
 };
+
 
 var downloadConfig = function (rc, callback){
   var multi = rc.multi();
@@ -274,14 +285,19 @@ var downloadConfig = function (rc, callback){
       var info = JSON.parse(serializedNodes[node]);
       deserializedNodes[node] = info;
     }
-    console.log(Object.keys(deserializedNodes));
-    for (var node in deserializedNodes) {
 
+
+
+    for (var node in deserializedNodes){
       var port = deserializedNodes[node].port || redisModule.DEFAULT_PORT;
       var host = deserializedNodes[node].host;
       var cli = redisModule.createClient(port, host);
 
       redisNodes[node] = {host : host, port : port, redisClient : cli};
+    }
+    console.log(Object.keys(deserializedNodes));
+    if(Object.keys(deserializedNodes).length != Object.keys(redisNodes).length){
+      haMon.newSentinel(redisNodes);
     }
     callback(err);
   });
@@ -302,6 +318,10 @@ exports.removeNode = removeNode;
 
 exports.bootstrapMigration = bootstrapMigration;
 
+exports.getNodesSerialized = getNodesSerialized;
+
 exports.getNodes = getNodes;
+
+exports.setNodes = setNodes;
 
 exports.downloadConfig = downloadConfig;

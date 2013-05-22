@@ -1,5 +1,6 @@
-sentinel monitor mymaster 127.0.0.1 8888 2
+sentinel monitor mymaster 127.0.0.1 7777 2
 sentinel down-after-milliseconds mymaster 5000
 sentinel failover-timeout mymaster 90000
 sentinel can-failover mymaster yes
 sentinel parallel-syncs mymaster 1
+

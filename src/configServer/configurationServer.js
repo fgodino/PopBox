@@ -4,6 +4,7 @@ var redis = require('redis');
 var config = require('./config.js');
 var haMon = require('./haMonitor.js');
 var uuid = require("node-uuid");
+var events = require('events');
 
 var serverId = uuid.v1();
 var count = 0;
@@ -12,15 +13,19 @@ var available = false;
 var persistenceClient;
 var rc;
 
+var subscriberAgent;
+var subscriberConfig;
+
 var createClient = function(port, host){
   var redisCli = redis.createClient(port, host);
-  var reference = {cli : redisCli};
+  var eventEmitter = new events.EventEmitter();
+  var reference = {cli : redisCli, emitter : eventEmitter};
   haMon.masterChanged.on('switched', function(newMaster){
-    console.log(newMaster);
     redisCli.end();
     persistenceClient = newMaster;
     redisCli = redis.createClient(newMaster.port, newMaster.host);
     reference.cli = redisCli;
+    reference.emitter.emit('changed');
   });
 
   return reference;
@@ -46,7 +51,10 @@ var migrator = function(cb){
   setTimeout(delayedMigrate, 4000);
 
   function delayedMigrate(){
-    if (count === 0){
+
+    var countAux = count;
+
+    if (countAux === 0){
       migrated();
     } else {
 
@@ -56,14 +64,19 @@ var migrator = function(cb){
       subscriber.cli.on("message", function(channel, message){
         if(agents.hasOwnProperty(message) && agents[message].ok){
           agents[message].ready = true;
-          count--;
-          if(count === 0){
-            subscriber.cli.unsubscribe("agent:ok");
-            migrated();
-          }
+          countAux--;
         }
       });
+
+      var checkInterval = setInterval(function checkCounter(){
+        if(countAux === 0){
+          subscriber.cli.unsubscribe("agent:ok");
+          clearInterval(checkInterval);
+          migrated();
+        }
+      }, 2000);
     }
+
 
     function migrated(){
       cb(function(err){
@@ -82,14 +95,17 @@ var migrator = function(cb){
           rc.cli.set('MIGRATING', false);
           available = true;
         }
-        count = Object.keys(agents).length;
         for (var agent in agents){
           agents[agent].ready = false;
         }
       });
-    };
-  };
+    }
+  }
 };
+
+setInterval(function(){
+  console.log(count);
+},3000);
 
 var monitorAgent = function(monitor, id){
   var num_tries = 0;
@@ -100,24 +116,24 @@ var monitorAgent = function(monitor, id){
     }
   }
 
-  monitor.on('message', newMessage);
+  monitor.cli.on('message', newMessage);
 
   var monitorInterval = setInterval(function(){
     num_tries++;
-    if(num_tries > 3){
+    if(num_tries > 4){
       console.log('peto agente');
-      monitor.removeListener('connection', newMessage);
+      monitor.cli.removeListener('message', newMessage);
       agents[id].ok = false;
       count--;
-      clearTimeout(monitorInterval);
+      clearInterval(monitorInterval);
     }
-  }, 2000);
+  }, 3000);
 };
 
 var uploadRing = function(cb){
   var continuum = hashHelper.getContinuum();
   var keys = hashHelper.getKeys();
-  var nodes = repHelper.getNodes();
+  var nodes = repHelper.getNodesSerialized();
 
   var multi = rc.cli.multi();
 
@@ -158,23 +174,35 @@ haMon.getMaster(function(err,master){
     else {
       var subscriberAgent = createClient(persistenceClient.port,persistenceClient.host);
       var subscriberConfig = createClient(persistenceClient.port, persistenceClient.host);
-      subscriberAgent.cli.subscribe("agent:new");
-      subscriberConfig.cli.subscribe("migration:new");
-      subscriberAgent.cli.on("message", function(channel, message){
-        if(!agents.hasOwnProperty(message)){
-          monitorAgent(subscriberAgent, message);
-          count++;
-          agents[message] = {ready : false, ok : true};
-        }
+
+      subscriberAgent.emitter.on('changed', function(){
+        subscriberAgent.cli.subscribe("agent:new");
+        subscriberAgent.cli.on("message", function(channel, message){
+          if(!agents.hasOwnProperty(message) || !agents[message].ok){
+            monitorAgent(subscriberAgent, message);
+            count++;
+            agents[message] = {ready : false, ok : true};
+          }
+        });
       });
-      subscriberConfig.cli.on("message", function(channel, message){
-        if(message === "OK"){
-          available = false;
-          repHelper.downloadConfig(rc.cli,function(err){
-            if (!err) available = true;
-          })
-        }
+
+      subscriberConfig.emitter.on('changed', function(){
+        subscriberConfig.cli.subscribe("migration:new");
+        subscriberConfig.cli.on("message", function(channel, message){
+          if(message === "OK"){
+            available = false;
+            repHelper.downloadConfig(rc.cli,function(err){
+              if (!err){
+                available = true;
+              }
+            });
+          }
+        });
       });
+
+      subscriberConfig.emitter.emit('changed');
+      subscriberAgent.emitter.emit('changed');
+
       migrator(function(cb){
         cb();
       });
@@ -184,12 +212,12 @@ haMon.getMaster(function(err,master){
 
 var addNode = function(req, res){
   var host = req.body.host || 'localhost', port = req.body.port, name = req.body.name;
-  var errors = []
+  var errors = [];
 
   console.log(host, port, name);
 
   if (!req.headers['content-type'] || req.headers['content-type'] !== 'application/json') {
-    errors.push('Invalid content-type')
+    errors.push('Invalid content-type');
   }
   if (!host || !port || !name){
     errors.push('missing fields');
@@ -215,7 +243,7 @@ var delNode = function(req, res){
   var errors = [];
 
   if (!req.headers['content-type'] || req.headers['content-type'] !== 'application/json') {
-    errors.push('Invalid content-type')
+    errors.push('Invalid content-type');
   }
   if (!name){
     errors.push('missing fields');
@@ -245,5 +273,5 @@ var getAgents = function(req, res){
 exports.delNode = delNode;
 exports.addNode = addNode;
 exports.getAgents = getAgents;
-
+exports.migrator = migrator;
 

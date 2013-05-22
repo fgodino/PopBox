@@ -24,7 +24,6 @@
 var redisModule = require('redis');
 var config = require('./config.js');
 var poolMod = require('./pool.js');
-var rc = redisModule.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
 var hashing = require('./consistentHashingClient.js');
 
 var path = require('path');
@@ -49,7 +48,7 @@ var free = function (db) {
   db.pool.free(db);
 };
 
-var downloadConfig = function (callback){
+var downloadConfig = function (rc, callback){
   var multi = rc.multi();
 
   multi.hgetall('NODES');
@@ -74,7 +73,7 @@ var downloadConfig = function (callback){
       deserializedNodes[node] = info;
     }
     console.log(Object.keys(deserializedNodes));
-    for (var node in deserializedNodes) {
+    for (var node in deserializedNodes){
       console.log(node);
       var port = deserializedNodes[node].port || redisModule.DEFAULT_PORT;
       var host = deserializedNodes[node].host;

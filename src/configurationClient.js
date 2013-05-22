@@ -4,35 +4,34 @@ var redis = require('redis');
 var uuid = require('node-uuid');
 var hooker = require('hooker');
 var dbCluster = require('./dbCluster');
+var haMon = require('./haMonitor.js');
 
 var agentId = uuid.v1();
 
 var migrating = true;
 var numberActive = 0;
 
-var migChecker = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
-migChecker.get('MIGRATING', function(err, res){
-  if (err){
-    throw new Error(err);
-  } else {
-    migrating = (res === 'true'); //deserialize response, boolean
-    if (migrating){
-      initMigrationProcess();
-    } else {
-      dbCluster.downloadConfig(function onDownloaded(err) {
-        if(err){
-          throw new Error(err);
-        }
-      });
-    }
-  }
-});
+var persistenceClient;
+var rc, publisher, subscriber;
+
+var createClient = function(port, host){
+  var redisCli = redis.createClient(port, host);
+  var reference = {cli : redisCli, emitter : haMon.masterChanged};
+  haMon.masterChanged.on('switched', function(newMaster){
+    redisCli.end();
+    persistenceClient = newMaster;
+    redisCli = redis.createClient(newMaster.port, newMaster.host);
+    reference.cli = redisCli;
+  });
+
+  return reference;
+};
 
 exports.checkMigrating = function(req, res, next){
   if (migrating){
-      res.send('Migrating', 500);
+    res.send('Migrating', 500);
   } else {
-      next();
+    next();
   }
 };
 
@@ -56,48 +55,81 @@ exports.init = function(exp){
   });
 };
 
-var publisher = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
-var subscriber = redis.createClient(config.persistenceRedis.port, config.persistenceRedis.host);
 
-setInterval(function(){
-  publisher.publish('agent:new', agentId);
-},2000);
+haMon.getMaster(function(err,master){
+  console.log(master);
+  rc = createClient(master.port, master.host);
+  publisher = createClient(master.port, master.host);
+  subscriber = createClient(master.port, master.host);
 
-subscriber.subscribe('migration:new');
+  rc.cli.get('MIGRATING', function(err, res){
+    if (err){
+      throw new Error(err);
+    } else {
+      migrating = (res === 'true'); //deserialize response, boolean
+      if (migrating){
+        initMigrationProcess();
+      } else {
+        dbCluster.downloadConfig(rc.cli, function onDownloaded(err) {
+          if(err){
+            throw new Error(err);
+          }
+        });
+      }
+    }
+  });
 
-subscriber.on('message', function(channel, message){
-  if (message === 'NEW') { //Ignore it otherwise
-    if(!migrating) initMigrationProcess();
-    console.log('new');
-  }
+
+  setInterval(function(){
+    publisher.cli.publish('agent:new', agentId);
+  },2000);
+
+  subscriber.emitter.on('changed', function(){
+    subscriber.cli.subscribe("migration:new");
+    subscriber.cli.on("message", function onMessage(channel, message){
+      if (message === 'NEW') { //Ignore it otherwise
+        if(!migrating) initMigrationProcess();
+        console.log('new');
+      }
+    });
+  });
+
+  subscriber.emitter.emit('changed');
 });
 
 
 var initMigrationProcess = function(){
   migrating = true;
+
   var checkReady = setInterval(function checkAgain(argument) {
-          console.log('check');
     if (numberActive === 0){
-      publisher.publish('agent:ok', agentId);
-      clearTimeout(checkReady);
+      publisher.cli.publish('agent:ok', agentId);
+      clearInterval(checkReady);
     }
   }, 2000);
-  subscriber.on('message', function onMessage(channel, message){
-    if (message === 'OK') { //Ignore it otherwise
-      subscriber.removeListener('message', onMessage);
-      dbCluster.downloadConfig(function onDownloaded(err) {
-        if(err){
-          throw new Error(err);
-        } else {
-          migrating = false;
-        }
-      });
-    }
-    else if (message === 'FAIL') { //Ignore it otherwise
-      subscriber.removeListener('message', onMessage);
-      migrating = false;
-    }
+
+  subscriber.emitter.on('changed', function(){
+    subscriber.cli.subscribe("migration:new");
+    subscriber.cli.on("message", function onMessage(channel, message){
+      if (message === 'OK') { //Ignore it otherwise
+        subscriber.cli.removeListener('message', onMessage);
+        dbCluster.downloadConfig(rc.cli, function onDownloaded(err) {
+          if(err){
+            throw new Error(err);
+          } else {
+            migrating = false;
+          }
+        });
+      }
+      else if (message === 'FAIL') { //Ignore it otherwise
+        subscriber.cli.removeListener('message', onMessage);
+        migrating = false;
+      }
+    });
   });
+
+  subscriber.emitter.emit('changed');
+
 };
 
 exports.decActive = decActive;
